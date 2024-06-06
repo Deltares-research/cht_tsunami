@@ -1,3 +1,4 @@
 
 *.pyc
 /src/cht_tsunami.egg-info
+__pycache__
