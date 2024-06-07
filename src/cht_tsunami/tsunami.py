@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import pandas as pd
 
 from clawpack.geoclaw import dtopotools
 
@@ -37,7 +38,10 @@ class Tsunami:
 #        self.fault = dtopotools.SiftFault(source_file=source_file)
 
     def read_oz_ptha_files(self):
-        pass
+        # Read xls files
+        file_name = "oz_ptha_2018.xlsx"
+        df = pd.read_excel(file_name, sheet_name="Faults")
+        print(df)
 
 
     def compute(self, dx=100.0, dy=100):
