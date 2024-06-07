@@ -67,3 +67,16 @@ class Tsunami:
 
         pass
 
+
+    def write(self, file_name, format="netcdf"):
+        if format == "netcdf":
+            self.data.to_netcdf(file_name)
+        elif format == "geotiff":
+            # Write geotiff file named file_name using PIL
+            pass
+        elif format == "xugrid":
+            pass
+        else:
+            raise ValueError("Format not supported")
+        
+        
