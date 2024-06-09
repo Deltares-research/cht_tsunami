@@ -7,27 +7,33 @@ from cht.sfincs2.sfincs import SFINCS
 source_file = "alaska1964.csv"
 
 # Generate tsunami
-ts = Tsunami(source_file=source_file, plot=True)
+ts = Tsunami(source_file=source_file, plot=False, smoothing=True)
 
-x = ts.data["x"].values
-y = ts.data["y"].values
-z = ts.data["dZ"].values
+ts.write("tsunami.nc")
 
-fig, ax = plt.subplots()
-c = ax.pcolor(x, y, z, cmap="seismic", vmin=-20.0, vmax=20.0)
-ax.set_title('dZ')
-ax.axis('equal')
-fig.colorbar(c, ax=ax)
-fig.tight_layout()
+# Move this next plotting bit somehow to Tsunami object? 
+# E.g. with: ts.plot() ?
 
-plt.show()
+# fig, ax = plt.subplots()
+# x = ts.data["x"].values 
+# y = ts.data["y"].values
+# z = ts.data["dZ"].values
+# c = ax.pcolor(x, y, z, cmap="seismic", vmin=-20.0, vmax=20.0)
+# ax.set_title('dZ')
+# ax.axis('equal')
+# fig.colorbar(c, ax=ax)
+# fig.tight_layout()
+# plt.show()
 
-# # Read SFINCS model
-# sf = SFINCS(file_name="sfincs.inp")
+# Read SFINCS model
+sf = SFINCS(root=r"c:\work\projects\tsunami_tests\sfincs\global", mode="r")
 
-# # Interpolate the data to the mesh
-# sf.initial_conditions.interpolate(ts.data)
+# Interpolate the data to the mesh
+sf.initial_conditions.interpolate(ts.data, var_name="dZ")
 
-# # Write the initial conditions to the SFINCS input file
-# sf.input.inifile = "sfincs_ini.nc"
-# sf.initial_conditions.write()
+# Write the initial conditions to the SFINCS input file
+sf.input.variables.ncinifile = "sfincs_ini.nc"
+sf.initial_conditions.write()
+
+# Write new sfincs input file
+sf.input.write()

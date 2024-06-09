@@ -1,16 +1,18 @@
 import xarray as xr
 import numpy as np
 import pandas as pd
+import rioxarray
+from scipy.ndimage import gaussian_filter
 
 from clawpack.geoclaw import dtopotools
 
 class Tsunami:
-    def __init__(self, source_file=None, plot=False):
+    def __init__(self, source_file=None, plot=False, smoothing=False):
         if source_file is not None:
             # Read input file (assuming it is a SIFT fault for now)
             self.read_fault(source_file, plot=plot)
             # Compute the initial water surface displacement
-            self.compute()
+            self.compute(smoothing=smoothing)
 
     def read_geotiff(self, geotiff_file):
         # read geotiff
@@ -44,22 +46,28 @@ class Tsunami:
         print(df)
 
 
-    def compute(self, dx=100.0, dy=100):
+    def compute(self, dx=100.0, dy=100, smoothing=True):
         """Compute tsunami with Okada (1985). Store initial water surface displacement in XArray"""
-        x, y = self.fault.create_dtopo_xy()
+        x, y = self.fault.create_dtopo_xy(buffer_size=5.0)
         dtopo = self.fault.create_dtopography(x, y)
 
         # Take the last displacement
         dZ = np.squeeze(dtopo.dZ[-1,:,:])
-        x, y = np.meshgrid(dtopo.x, dtopo.y)
+
+        if smoothing:
+            dZ = gaussian_filter(dZ, sigma=5)
+
+        # x, y = np.meshgrid(dtopo.x, dtopo.y)
+        x = dtopo.x
+        y = dtopo.y
 
         # Create an xarray dataset with the surface displacement dtopo.dZ. X and Y are the coordinates dtopo.x and dtopo.y         
         ds = xr.Dataset()
-        ds['dZ'] = xr.DataArray(dZ, dims=['x', 'y'])
-        ds['x'] = xr.DataArray(x, dims=['x', 'y'])
-        ds['y'] = xr.DataArray(y, dims=['x', 'y'])
-        # plt = dtopo.plot_dZ_colors(0.0)
-        # plt.draw()
+        ds['x'] = xr.DataArray(x, dims=['x'])
+        ds['y'] = xr.DataArray(y, dims=['y'])
+        ds['dZ'] = xr.DataArray(dZ, dims=['y', 'x'])
+
+        ds.rio.write_crs(4326, inplace=True)
 
         self.data = ds
 
