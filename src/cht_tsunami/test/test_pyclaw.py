@@ -6,15 +6,13 @@ source_details = get_source_file_details()
 # Depending on the source type, initialize the Tsunami object accordingly
 if source_details["source_type"] == "GEOTIFF":
     ts = Tsunami(geo_file=source_details["file_name"])
-elif source_details["source_type"] == "SIFT":
-    ts = Tsunami(sift_file=source_details["file_name"], plot=False, smoothing=True)
-elif source_details["source_type"] == "CSV":
+elif source_details["source_type"] == "SIFTCSV":
     ts = Tsunami(csv_file=source_details["file_name"], plot=False, smoothing=True)
 elif source_details["source_type"] == "AUS_PTHA":
     ts = Tsunami(event_excel_file=source_details["event_excel_file"], 
                  event_row_number=source_details["event_row_number"], 
                  statistics_excel_file=source_details["statistics_excel_file"], 
-                 plot=False, smoothing=True)
+                 plot=False, smoothing=False)
 
 ts.write("tsunami.nc")
 

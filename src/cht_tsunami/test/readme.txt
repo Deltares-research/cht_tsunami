@@ -17,6 +17,6 @@ pip install -e c:\work\checkouts\git\cht_tsunami
 # Make editable package of cht (used for SFINCS fileio etc)
 pip install -e c:\work\checkouts\git\coastalhazardstoolkit
 
-# dependencies needed
+# dependencies needed?
 conda install dask 
 conda install openpyxl

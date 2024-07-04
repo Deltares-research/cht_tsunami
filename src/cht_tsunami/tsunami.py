@@ -7,19 +7,15 @@ from scipy.ndimage import gaussian_filter
 
 from clawpack.geoclaw import dtopotools
 
-# Lauren - user defined input, geotiff, sift, csv, or aus_ptha
+# Lauren - user defined input, geotiff, siftcsv, or aus_ptha
 def get_source_file_details():
-    source_type = input("Enter the source file type (geotiff, sift, csv, or aus_ptha): ").strip().upper()
+    source_type = input("Enter the source file type (geotiff, siftcsv, or aus_ptha): ").strip().upper()
 
     if source_type == "GEOTIFF":
         file_name = input("Enter the name of the geotiff file: ").strip()
         return {"source_type":source_type, "file_name": file_name}
     
-    elif source_type == "SIFT":
-        file_name = input("Enter the name of the sift file: ").strip()
-        return {"source_type":source_type, "file_name": file_name}
-    
-    elif source_type == "CSV":
+    elif source_type == "SIFTCSV":
         file_name = input("Enter the name of the csv file: ").strip()
         return {"source_type": source_type, "file_name": file_name}   
     
@@ -39,12 +35,9 @@ def get_source_file_details():
         return get_source_file_details()
 
 class Tsunami:
-    def __init__(self, geo_file=None, sift_file=None, csv_file=None, event_excel_file=None, event_row_number=None, statistics_excel_file=None, plot=False, smoothing=False):
+    def __init__(self, geo_file=None, csv_file=None, event_excel_file=None, event_row_number=None, statistics_excel_file=None, plot=False, smoothing=False):
         if geo_file is not None:
             self.read_geotiff(geo_file)
-        elif sift_file is not None:
-            self.read_sift(sift_file,plot=plot)
-            self.compute(smoothing=smoothing)
         elif csv_file is not None:
             self.read_csvfault(csv_file,plot=plot)
             self.compute(smoothing=smoothing)
@@ -70,13 +63,9 @@ class Tsunami:
         self.fault = dtopotools.Fault()
         column_map = {"longitude":0, "latitude":1, "depth":2, "length":3, "width":4, "strike":5,  "dip":6, "rake":7, "slip":8}
         input_units = {'length': 'km', 'width': 'km', 'depth': 'km', 'slip': 'm', 'mu': 'Pa'}
-        self.fault.read(source_file, column_map, skiprows=1, delimiter=",", input_units=input_units)
+        self.fault.read(csv_file, column_map, skiprows=1, delimiter=",", input_units=input_units,coordinate_specification="noaa sift")
         if plot:
             self.fault.plot_subfaults()
-
-    def read_sift(self, sift_file, plot=False):
-        self.fault = dtopotools.SiftFault(source_file=sift_file)
-
     
     def read_ptha(self, event_excel_file, event_row_number, statistics_excel_file, plot=False):
         """Read the event and statistics Excel files for PTHA and store the data in the class"""
@@ -102,7 +91,7 @@ class Tsunami:
             subfault.slip=slip
             subfault.length=stats_row['length']
             subfault.width=stats_row['width']
-            subfault.coordinate_specification="top center" # THIS IS A GUESS
+            subfault.coordinate_specification="centroid" # THIS IS A GUESS
             fault_segments.append(subfault)
 
         self.fault = dtopotools.Fault(subfaults=fault_segments,input_units=input_units)
