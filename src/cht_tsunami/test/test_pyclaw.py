@@ -1,29 +1,24 @@
-import matplotlib.pyplot as plt
-
-from cht_tsunami.tsunami import Tsunami
+from cht_tsunami.tsunami import Tsunami,get_source_file_details
 from cht.sfincs2.sfincs import SFINCS
 
-#file_name = "c:\\work\\checkouts\\git\\cht_tsunami\\src\\clawpack\\geoclaw\\data\\info_sz.dat.txt"
-source_file = "C:/Users/Lauren/Desktop/Tools/cht_tsunami/src/cht_tsunami/test/alaska1964.csv"
+source_details = get_source_file_details()
 
-# Generate tsunami
-ts = Tsunami(source_file=source_file, plot=False, smoothing=True)
+# Depending on the source type, initialize the Tsunami object accordingly
+if source_details["source_type"] == "GEOTIFF":
+    ts = Tsunami(geo_file=source_details["file_name"])
+elif source_details["source_type"] == "SIFT":
+    ts = Tsunami(sift_file=source_details["file_name"], plot=False, smoothing=True)
+elif source_details["source_type"] == "CSV":
+    ts = Tsunami(csv_file=source_details["file_name"], plot=False, smoothing=True)
+elif source_details["source_type"] == "AUS_PTHA":
+    ts = Tsunami(event_excel_file=source_details["event_excel_file"], 
+                 event_row_number=source_details["event_row_number"], 
+                 statistics_excel_file=source_details["statistics_excel_file"], 
+                 plot=False, smoothing=True)
 
 ts.write("tsunami.nc")
 
-# Move this next plotting bit somehow to Tsunami object? 
-# E.g. with: ts.plot() ?
-
-fig, ax = plt.subplots()
-x = ts.data["x"].values 
-y = ts.data["y"].values
-z = ts.data["dZ"].values
-c = ax.pcolor(x, y, z, cmap="seismic", vmin=-20.0, vmax=20.0)
-ax.set_title('dZ')
-ax.axis('equal')
-fig.colorbar(c, ax=ax)
-fig.tight_layout()
-plt.show()
+ts.plot_fullfault()
 
 # Read SFINCS model
 sf = SFINCS(root=r"C:/Users/Lauren/Desktop/Tools/SFINCS_Tsunami/models/global", mode="r")
