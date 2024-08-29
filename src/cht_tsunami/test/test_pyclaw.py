@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 from cht_tsunami.tsunami import Tsunami
-from cht.sfincs2.sfincs import SFINCS
+from cht_sfincs.sfincs import SFINCS
 
 #file_name = "c:\\work\\checkouts\\git\\cht_tsunami\\src\\clawpack\\geoclaw\\data\\info_sz.dat.txt"
 source_file = "alaska1964.csv"
