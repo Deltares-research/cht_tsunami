@@ -42,18 +42,19 @@ class Tsunami:
                  compute=True,
                  dx=1.0/60.0,
                  buffer_size=5.0):
-        if geo_file is not None:
-            self.read_geotiff(geo_file)
-            compute = False
-        elif csv_file is not None:
-            self.read_csvfault(csv_file, plot=plot)
-        elif ucsb_file is not None:
-            self.read_ucsb(ucsb_file, plot=plot)
-        elif event_excel_file is not None and event_row_number is not None and statistics_excel_file is not None:
-            self.read_ptha(event_excel_file, event_row_number, statistics_excel_file, plot=plot)
-
-        if compute:
-            self.compute(smoothing=smoothing, dx=dx, buffer_size=buffer_size)
+        pass
+        # if geo_file is not None:
+        #     self.read_geotiff(geo_file)
+        #     compute = False
+        # elif csv_file is not None:
+        #     self.read_csvfault(csv_file, plot=plot)
+        # elif ucsb_file is not None:
+        #     self.read_ucsb(ucsb_file, plot=plot)
+        # elif event_excel_file is not None and event_row_number is not None and statistics_excel_file is not None:
+        #     self.read_ptha(event_excel_file, event_row_number, statistics_excel_file, plot=plot)
+        #
+        # if compute:
+        #     self.compute(smoothing=smoothing, dx=dx, buffer_size=buffer_size)
 
     def read_fault_file(self, file_name):
         """Read the fault file and store the data in the class"""
@@ -63,6 +64,8 @@ class Tsunami:
             self.read_csvfault(file_name)
         elif extension == "geo" or extension == "tif" or extension == "tiff":
             self.read_geotiff(file_name)
+        elif extension == "ucsb" or extension == "usb":
+            self.read_ucsb(file_name)
         else:
             # 
             print("File type not supported")
@@ -92,8 +95,8 @@ class Tsunami:
     def read_ucsb(self, ucsb_file, plot=False):
         """Use clawpack scripts to read in the input file and store the data in the class"""
         self.fault = dtopotools.UCSBFault()
-        column_map = {"longitude":0, "latitude":1, "depth":2, "length":3, "width":4, "strike":5,  "dip":6, "rake":7, "slip":8}
-        input_units = {'length': 'km', 'width': 'km', 'depth': 'km', 'slip': 'm', 'mu': 'Pa'}
+        # column_map = {"longitude":0, "latitude":1, "depth":2, "length":3, "width":4, "strike":5,  "dip":6, "rake":7, "slip":8}
+        # input_units = {'length': 'km', 'width': 'km', 'depth': 'km', 'slip': 'm', 'mu': 'Pa'}
         self.fault.read(ucsb_file, rupture_type="static")
         if plot:
             self.fault.plot_subfaults()
