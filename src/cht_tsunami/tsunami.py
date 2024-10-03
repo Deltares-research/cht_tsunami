@@ -35,15 +35,25 @@ def get_source_file_details():
         return get_source_file_details()
 
 class Tsunami:
-    def __init__(self, geo_file=None, csv_file=None, event_excel_file=None, event_row_number=None, statistics_excel_file=None, plot=False, smoothing=False):
+    def __init__(self, geo_file=None, csv_file=None, event_excel_file=None, ucsb_file=None,
+                 event_row_number=None, statistics_excel_file=None,
+                 plot=False,
+                 smoothing=False,
+                 compute=True,
+                 dx=1.0/60.0,
+                 buffer_size=5.0):
         if geo_file is not None:
             self.read_geotiff(geo_file)
+            compute = False
         elif csv_file is not None:
-            self.read_csvfault(csv_file,plot=plot)
-            self.compute(smoothing=smoothing)
+            self.read_csvfault(csv_file, plot=plot)
+        elif ucsb_file is not None:
+            self.read_ucsb(ucsb_file, plot=plot)
         elif event_excel_file is not None and event_row_number is not None and statistics_excel_file is not None:
             self.read_ptha(event_excel_file, event_row_number, statistics_excel_file, plot=plot)
-            self.compute(smoothing=smoothing)
+
+        if compute:
+            self.compute(smoothing=smoothing, dx=dx, buffer_size=buffer_size)
 
     def read_fault_file(self, file_name):
         """Read the fault file and store the data in the class"""
@@ -78,7 +88,16 @@ class Tsunami:
         self.fault.read(csv_file, column_map, skiprows=1, delimiter=",", input_units=input_units,coordinate_specification="noaa sift")
         if plot:
             self.fault.plot_subfaults()
-    
+
+    def read_ucsb(self, ucsb_file, plot=False):
+        """Use clawpack scripts to read in the input file and store the data in the class"""
+        self.fault = dtopotools.UCSBFault()
+        column_map = {"longitude":0, "latitude":1, "depth":2, "length":3, "width":4, "strike":5,  "dip":6, "rake":7, "slip":8}
+        input_units = {'length': 'km', 'width': 'km', 'depth': 'km', 'slip': 'm', 'mu': 'Pa'}
+        self.fault.read(ucsb_file, rupture_type="static")
+        if plot:
+            self.fault.plot_subfaults()
+
     def read_ptha(self, event_excel_file, event_row_number, statistics_excel_file, plot=False):
         """Read the event and statistics Excel files for PTHA and store the data in the class"""
         event_df = pd.read_excel(event_excel_file)
@@ -111,9 +130,9 @@ class Tsunami:
             self.fault.plot_subfaults()
 
 
-    def compute(self, dx=100.0, dy=100, smoothing=True):
+    def compute(self, dx=1.0/60.0, smoothing=True, buffer_size=5.0):
         """Compute tsunami with Okada (1985). Store initial water surface displacement in XArray"""
-        x, y = self.fault.create_dtopo_xy(buffer_size=5.0)
+        x, y = self.fault.create_dtopo_xy(buffer_size=buffer_size, dx=dx)
         dtopo = self.fault.create_dtopography(x, y)
 
         # Take the last displacement
