@@ -45,6 +45,18 @@ class Tsunami:
             self.read_ptha(event_excel_file, event_row_number, statistics_excel_file, plot=plot)
             self.compute(smoothing=smoothing)
 
+    def read_fault_file(self, file_name):
+        """Read the fault file and store the data in the class"""
+        # Get extension of the file
+        extension = file_name.split(".")[-1].lower()
+        if extension == "csv":
+            self.read_csvfault(file_name)
+        elif extension == "geo" or extension == "tif" or extension == "tiff":
+            self.read_geotiff(file_name)
+        else:
+            # 
+            print("File type not supported")
+
     def read_geotiff(self, geo_file):
         with rasterio.open(geo_file) as src:
             data = src.read(1)  # Reading the first band
