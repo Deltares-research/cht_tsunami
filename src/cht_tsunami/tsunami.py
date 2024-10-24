@@ -133,7 +133,7 @@ class Tsunami:
             self.fault.plot_subfaults()
 
 
-    def compute(self, dx=1.0/60.0, smoothing=True, buffer_size=5.0):
+    def compute(self, dx=1.0/60.0, smoothing=True, buffer_size=5.0, sigma=5):
         """Compute tsunami with Okada (1985). Store initial water surface displacement in XArray"""
         x, y = self.fault.create_dtopo_xy(buffer_size=buffer_size, dx=dx)
         dtopo = self.fault.create_dtopography(x, y)
@@ -142,7 +142,7 @@ class Tsunami:
         dZ = np.squeeze(dtopo.dZ[-1,:,:])
 
         if smoothing:
-            dZ = gaussian_filter(dZ, sigma=5)
+            dZ = gaussian_filter(dZ, sigma=sigma)
 
         # x, y = np.meshgrid(dtopo.x, dtopo.y)
         x = dtopo.x
