@@ -5,40 +5,38 @@
 # Modified by Katy Barnhart
 # date 05/2020
 
-import sys
+import logging
 import os
+
 import numpy as np
+
 from clawpack.pyclaw import Solution
 
-import logging
-
-logger = logging.getLogger('pyclaw.fileio')
+logger = logging.getLogger("pyclaw.fileio")
 
 try:
     import vtk
 except ImportError:
     logging.critical("Could not import vtk!")
-    error_msg = ("Could not import VTK, please install (package are available"
-    " through conda-forge and pypi. See the docstring for details).")
+    error_msg = (
+        "Could not import VTK, please install (package are available"
+        " through conda-forge and pypi. See the docstring for details)."
+    )
     print(error_msg)
 
+from vtk import vtkAMRBox, vtkOverlappingAMR, vtkUniformGrid, vtkXMLUniformGridAMRWriter
 from vtk.util import numpy_support
 
-from vtk import (
-    vtkOverlappingAMR,
-    vtkUniformGrid,
-    vtkAMRBox,
-    vtkXMLUniformGridAMRWriter)
 
 def write(
     solution,
     frame,
     path="_output",
-    file_prefix='claw',
+    file_prefix="claw",
     write_aux=None,
     options=None,
     write_p=None,
-    ):
+):
     """Write out a VTK representation of solution
 
     This capability requires installation of the vtk module that is created by
@@ -107,14 +105,14 @@ def write(
     binary = options.get("binary", False)
 
     # check types.
-    assert(isinstance(frame, int))
-    assert(isinstance(solution, Solution))
+    assert isinstance(frame, int)
+    assert isinstance(solution, Solution)
 
     # calculate overlapped status, used to identify some cells as ghosts.
     _set_overlapped_status(solution)
 
-    global_origin = solution.state.patch.lower_global + [0.]  # base patch
-    levels = [state.patch.level-1 for state in solution.states]
+    global_origin = solution.state.patch.lower_global + [0.0]  # base patch
+    levels = [state.patch.level - 1 for state in solution.states]
 
     # shift base level to 0, since the base level in clawpack
     # is 1 while the base level in VTK is 0
@@ -132,9 +130,9 @@ def write(
     numLevels = len(level_count.keys())
 
     # a list of num of patches at each level
-    blocksPerLevel = [item[1] for item in
-                     sorted(level_count.items(),
-                            key=lambda a: a[0])]
+    blocksPerLevel = [
+        item[1] for item in sorted(level_count.items(), key=lambda a: a[0])
+    ]
 
     # Initialize the vtkOverlappingAMR object. Provide it the number of levels,
     # number of blocks per level, and the global origin.
@@ -162,8 +160,10 @@ def write(
             local_index = global_index + index
 
             # get the origin and number of dimensions.
-            origin = states_sorted[local_index].patch.lower_global + [0.]
-            node_dims = [x + 1 for x in states_sorted[local_index].patch.num_cells_global + [0]]
+            origin = states_sorted[local_index].patch.lower_global + [0.0]
+            node_dims = [
+                x + 1 for x in states_sorted[local_index].patch.num_cells_global + [0]
+            ]
 
             # create a vtkUniformGrid using the vtkAMRBox
             grid = vtkUniformGrid()
@@ -184,14 +184,16 @@ def write(
             # it is set next.
             q = states_sorted[local_index].q
 
-            for i in range(q.shape[0]-1):
-                array_name = "q_"+str(i)
+            for i in range(q.shape[0] - 1):
+                array_name = "q_" + str(i)
                 q_i = q[i, ...]
                 q_i = q_i.transpose()
 
-                #https://pyscience.wordpress.com/2014/09/06/numpy-to-vtk-converting-your-numpy-arrays-to-vtk-arrays-and-files/
+                # https://pyscience.wordpress.com/2014/09/06/numpy-to-vtk-converting-your-numpy-arrays-to-vtk-arrays-and-files/
                 # transform into an array.
-                array = numpy_support.numpy_to_vtk(num_array=q_i.ravel(), deep=True, array_type=vtk.VTK_FLOAT)
+                array = numpy_support.numpy_to_vtk(
+                    num_array=q_i.ravel(), deep=True, array_type=vtk.VTK_FLOAT
+                )
 
                 # set the name.
                 array.SetName(array_name)
@@ -205,7 +207,9 @@ def write(
             # mark overlapping cells using the vtkGhostType array name.
             q_ol = q[-1, ...]  # last piece is used to mark overlapped cells
             q_ol = q_ol.transpose()
-            array = numpy_support.numpy_to_vtk(q_ol.ravel(), deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+            array = numpy_support.numpy_to_vtk(
+                q_ol.ravel(), deep=True, array_type=vtk.VTK_UNSIGNED_CHAR
+            )
             array.SetName("vtkGhostType")
             # add the array to the uniform grid.
             grid.GetCellData().AddArray(array)
@@ -221,7 +225,7 @@ def write(
         global_index += nblocks
 
     # write out the vtkOverlappingAMR object.
-    out = os.path.join(path, file_prefix+str(frame).zfill(4)+'.vthb')
+    out = os.path.join(path, file_prefix + str(frame).zfill(4) + ".vthb")
     writer = vtkXMLUniformGridAMRWriter()
     if not binary:
         writer.SetDataModeToAscii()
@@ -256,7 +260,7 @@ def _set_overlapped_status(sol):
                               number of patches on level1, ...]
 
     """
-    levels = [state.patch.level-1 for state in sol.states]
+    levels = [state.patch.level - 1 for state in sol.states]
     # shift base level to 0
     level_count = {}
     level_spacing = {}  # spacing of each level
@@ -271,13 +275,13 @@ def _set_overlapped_status(sol):
             level_spacing[level] = spacing
 
     # a list of num of patches at each level
-    box_per_level = [item[1] for item in
-                     sorted(level_count.items(),
-                            key=lambda a: a[0])]
+    box_per_level = [
+        item[1] for item in sorted(level_count.items(), key=lambda a: a[0])
+    ]
     box_per_level = np.array(box_per_level)
 
     for state in sol.states:
-        level = state.patch.level-1
+        level = state.patch.level - 1
         xlower_coarse = state.patch.dimensions[0].lower
         # xupper_coarse = state.patch.dimensions[0].upper
         ylower_coarse = state.patch.dimensions[1].lower
@@ -298,26 +302,27 @@ def _set_overlapped_status(sol):
         # Otherwise, we need to scan each states in each outer loop as below
         for state_fine in sol.states:
             # find states with grid level of one higher
-            if ((state_fine.patch.level-1) == level + 1):
+            if (state_fine.patch.level - 1) == level + 1:
                 xlower_fine = state_fine.patch.dimensions[0].lower
                 xupper_fine = state_fine.patch.dimensions[0].upper
                 ylower_fine = state_fine.patch.dimensions[1].lower
                 yupper_fine = state_fine.patch.dimensions[1].upper
-                x_idx_lower = \
-                    max(int(round((xlower_fine - xlower_coarse) /
-                            float(dx))), 0)
-                x_idx_upper = \
-                    min(int(round((xupper_fine-xlower_fine)/dx)) +
-                        x_idx_lower, nx)
-                y_idx_lower = \
-                    max(int(round((ylower_fine - ylower_coarse) /
-                            float(dy))), 0)
-                y_idx_upper = \
-                    min(int(round((yupper_fine-ylower_fine)/dy)) +
-                        y_idx_lower, ny)
+                x_idx_lower = max(
+                    int(round((xlower_fine - xlower_coarse) / float(dx))), 0
+                )
+                x_idx_upper = min(
+                    int(round((xupper_fine - xlower_fine) / dx)) + x_idx_lower, nx
+                )
+                y_idx_lower = max(
+                    int(round((ylower_fine - ylower_coarse) / float(dy))), 0
+                )
+                y_idx_upper = min(
+                    int(round((yupper_fine - ylower_fine) / dy)) + y_idx_lower, ny
+                )
                 # set these cells to 8
-                overlapped_status[0, x_idx_lower:x_idx_upper,
-                                  y_idx_lower:y_idx_upper].fill(8)
+                overlapped_status[
+                    0, x_idx_lower:x_idx_upper, y_idx_lower:y_idx_upper
+                ].fill(8)
 
             else:
                 continue

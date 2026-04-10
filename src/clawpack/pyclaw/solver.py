@@ -1,36 +1,44 @@
 r"""
 Module specifying the interface to every solver in PyClaw.
 """
+
 import logging
+
 import numpy as np
+
 
 class CFLError(Exception):
     """Error raised when cfl_max is exceeded.  Is this a
-       reasonable mechanism for handling that?"""
-    def __init__(self,msg):
-        super(CFLError,self).__init__(msg)
+    reasonable mechanism for handling that?"""
 
-class BC():
+    def __init__(self, msg):
+        super(CFLError, self).__init__(msg)
+
+
+class BC:
     """Enumeration of boundary condition names."""
+
     # This could instead just be implemented as a static dictionary.
-    custom     = 0
-    extrap    = 1
-    periodic   = 2
+    custom = 0
+    extrap = 1
+    periodic = 2
     wall = 3
 
+
 # =================== Dummy routines =============
-def default_compute_gauge_values(q,aux):
-    r"""By default, record values of q at gauges.
-    """
+def default_compute_gauge_values(q, aux):
+    r"""By default, record values of q at gauges."""
     return q
 
-def before_step(solver,solution):
+
+def before_step(solver, solution):
     r"""
     Dummy routine called before each step
 
     Replace this routine if you want to do something before each time step.
     """
     pass
+
 
 class Solver(object):
     r"""
@@ -137,17 +145,18 @@ class Solver(object):
     """
 
     def __setattr__(self, key, value):
-        if not hasattr(self, '_isinitialized'):
-            self.__dict__['_isinitialized'] = False
+        if not hasattr(self, "_isinitialized"):
+            self.__dict__["_isinitialized"] = False
         if self._isinitialized and not hasattr(self, key):
-            raise TypeError("%s has no attribute %s" % (self.__class__,key))
-        object.__setattr__(self,key,value)
+            raise TypeError("%s has no attribute %s" % (self.__class__, key))
+        object.__setattr__(self, key, value)
 
     @property
     def all_bcs(self):
         return self.bc_lower, self.bc_upper
+
     @all_bcs.setter
-    def all_bcs(self,all_bcs):
+    def all_bcs(self, all_bcs):
         for i in range(self.num_dim):
             self.bc_lower[i] = all_bcs
             self.bc_upper[i] = all_bcs
@@ -155,14 +164,14 @@ class Solver(object):
     #  ======================================================================
     #   Initialization routines
     #  ======================================================================
-    def __init__(self,riemann_solver=None,claw_package=None):
+    def __init__(self, riemann_solver=None, claw_package=None):
         r"""
         Initialize a Solver object
 
         See :class:`Solver` for full documentation
         """
         # Setup solve logger
-        self.logger = logging.getLogger('pyclaw.solver')
+        self.logger = logging.getLogger("pyclaw.solver")
 
         self.dt_initial = 0.1
         self.dt_max = 1e99
@@ -184,31 +193,39 @@ class Solver(object):
         # the computed claw_package will be 'clawpack.petclaw'
 
         import sys
+
         if claw_package is not None and claw_package in sys.modules:
             self.claw_package = sys.modules[claw_package]
         else:
-            def get_clawpack_dot_xxx(modname): return modname.rpartition('.')[0].rpartition('.')[0]
+
+            def get_clawpack_dot_xxx(modname):
+                return modname.rpartition(".")[0].rpartition(".")[0]
+
             claw_package_name = get_clawpack_dot_xxx(self.__module__)
             if claw_package_name in sys.modules:
                 self.claw_package = sys.modules[claw_package_name]
             else:
-                raise NotImplementedError("Unable to determine solver package, please provide one")
+                raise NotImplementedError(
+                    "Unable to determine solver package, please provide one"
+                )
 
         # Initialize time stepper values
         self.dt = self.dt_initial
         self.cfl = self.claw_package.CFL(self.cfl_desired)
 
         # Status Dictionary
-        self.status = {'cflmax': -np.inf,
-                       'dtmin': np.inf,
-                       'dtmax': -np.inf,
-                       'numsteps': 0 }
+        self.status = {
+            "cflmax": -np.inf,
+            "dtmin": np.inf,
+            "dtmax": -np.inf,
+            "numsteps": 0,
+        }
 
         # No default BCs; user must set them
-        self.bc_lower =    [None]*self.num_dim
-        self.bc_upper =    [None]*self.num_dim
-        self.aux_bc_lower = [None]*self.num_dim
-        self.aux_bc_upper = [None]*self.num_dim
+        self.bc_lower = [None] * self.num_dim
+        self.bc_upper = [None] * self.num_dim
+        self.aux_bc_lower = [None] * self.num_dim
+        self.aux_bc_upper = [None] * self.num_dim
 
         self.user_bc_lower = None
         self.user_bc_upper = None
@@ -216,28 +233,29 @@ class Solver(object):
         self.user_aux_bc_lower = None
         self.user_aux_bc_upper = None
 
-        self.num_eqn   = None
+        self.num_eqn = None
         self.num_waves = None
 
         self.compute_gauge_values = default_compute_gauge_values
         r"""(function) - Function that computes quantities to be recorded at gauges"""
 
-        self.qbc          = None
+        self.qbc = None
         r""" Array to hold ghost cell values.  This is the one that gets passed
         to the Fortran code.  """
 
         if riemann_solver is not None:
             self.rp = riemann_solver
-            rp_name = riemann_solver.__name__.split('.')[-1]
+            rp_name = riemann_solver.__name__.split(".")[-1]
             from clawpack import riemann
+
             if "ptwise" in rp_name:
                 rp_name = rp_name.replace("_ptwise", "")
-            self.num_eqn   = riemann.static.num_eqn.get(rp_name,None)
-            self.num_waves = riemann.static.num_waves.get(rp_name,None)
+            self.num_eqn = riemann.static.num_eqn.get(rp_name, None)
+            self.num_waves = riemann.static.num_waves.get(rp_name, None)
 
         self._isinitialized = True
 
-        super(Solver,self).__init__()
+        super(Solver, self).__init__()
 
     # ========================================================================
     #  Solver setup and validation routines
@@ -262,26 +280,26 @@ class Solver(object):
         if any([bcmeth == BC.custom for bcmeth in self.bc_lower]):
             if self.user_bc_lower is None:
                 valid = False
-                reason = 'Lower custom BC function has not been set.'
+                reason = "Lower custom BC function has not been set."
         if any([bcmeth == BC.custom for bcmeth in self.bc_upper]):
             if self.user_bc_upper is None:
                 valid = False
-                reason = 'Upper custom BC function has not been set.'
+                reason = "Upper custom BC function has not been set."
         if self.num_waves is None:
             valid = False
-            reason = 'solver.num_waves has not been set.'
+            reason = "solver.num_waves has not been set."
         if self.num_eqn is None:
             valid = False
-            reason = 'solver.num_eqn has not been set.'
+            reason = "solver.num_eqn has not been set."
         if (None in self.bc_lower) or (None in self.bc_upper):
             valid = False
-            reason = 'One of the boundary conditions has not been set.'
+            reason = "One of the boundary conditions has not been set."
 
         if reason is not None:
             self.logger.debug(reason)
         return valid, reason
 
-    def setup(self,solution):
+    def setup(self, solution):
         r"""
         Stub for solver setup routines.
 
@@ -306,14 +324,14 @@ class Solver(object):
 
     def __str__(self):
         output = "Solver Status:\n"
-        for (k,v) in self.status.items():
-            output = "\n".join((output,"%s = %s" % (k.rjust(25),v)))
+        for k, v in self.status.items():
+            output = "\n".join((output, "%s = %s" % (k.rjust(25), v)))
         return output
 
     # ========================================================================
     #  Boundary Conditions
     # ========================================================================
-    def _allocate_bc_arrays(self,state):
+    def _allocate_bc_arrays(self, state):
         r"""
         Create numpy arrays for q and aux with ghost cells attached.
         These arrays are referred to throughout the code as qbc and auxbc.
@@ -321,7 +339,13 @@ class Solver(object):
         This is typically called by solver.setup().
         """
         import inspect
-        for fun in (self.user_bc_lower,self.user_bc_upper,self.user_aux_bc_lower,self.user_aux_bc_upper):
+
+        for fun in (
+            self.user_bc_lower,
+            self.user_bc_upper,
+            self.user_aux_bc_lower,
+            self.user_aux_bc_upper,
+        ):
             if fun is not None:
                 args = inspect.getfullargspec(fun)[0]
                 if len(args) == 5:
@@ -333,13 +357,13 @@ class Solver(object):
                                         for more information.""")
                     self._use_old_bc_sig = True
 
-        qbc_dim = [n+2*self.num_ghost for n in state.grid.num_cells]
-        qbc_dim.insert(0,state.num_eqn)
-        self.qbc = np.zeros(qbc_dim,order='F')
+        qbc_dim = [n + 2 * self.num_ghost for n in state.grid.num_cells]
+        qbc_dim.insert(0, state.num_eqn)
+        self.qbc = np.zeros(qbc_dim, order="F")
 
-        auxbc_dim = [n+2*self.num_ghost for n in state.grid.num_cells]
-        auxbc_dim.insert(0,state.num_aux)
-        self.auxbc = np.empty(auxbc_dim,order='F')
+        auxbc_dim = [n + 2 * self.num_ghost for n in state.grid.num_cells]
+        auxbc_dim.insert(0, state.num_aux)
+        self.auxbc = np.empty(auxbc_dim, order="F")
 
         self._apply_bcs(state)
 
@@ -369,67 +393,111 @@ class Solver(object):
 
         grid = state.grid
 
-        for (idim, dim) in enumerate(grid.dimensions):
+        for idim, dim in enumerate(grid.dimensions):
             # Check if we are on a true boundary
             if state.grid.on_lower_boundary[idim]:
-
                 bcs = []
                 if state.num_aux > 0:
-                    bcs.append({'array'  : self.auxbc,
-                                'type'   : self.aux_bc_lower,
-                                'custom_fun' : self.user_aux_bc_lower,
-                                'variable' : 'aux'})
-                bcs.append({'array'  : self.qbc,
-                            'type'   : self.bc_lower,
-                            'custom_fun' : self.user_bc_lower,
-                            'variable' : 'q'})
-                for (i, bc) in enumerate(bcs):
-
-                    if bc['type'][idim] == BC.custom:
+                    bcs.append(
+                        {
+                            "array": self.auxbc,
+                            "type": self.aux_bc_lower,
+                            "custom_fun": self.user_aux_bc_lower,
+                            "variable": "aux",
+                        }
+                    )
+                bcs.append(
+                    {
+                        "array": self.qbc,
+                        "type": self.bc_lower,
+                        "custom_fun": self.user_bc_lower,
+                        "variable": "q",
+                    }
+                )
+                for i, bc in enumerate(bcs):
+                    if bc["type"][idim] == BC.custom:
                         if not self._use_old_bc_sig:
-                            bc['custom_fun'](state, dim, state.t, self.qbc,
-                                             self.auxbc, self.num_ghost)
+                            bc["custom_fun"](
+                                state,
+                                dim,
+                                state.t,
+                                self.qbc,
+                                self.auxbc,
+                                self.num_ghost,
+                            )
                         else:
-                            bc['custom_fun'](state, dim, state.t, bc['array'], self.num_ghost)
+                            bc["custom_fun"](
+                                state, dim, state.t, bc["array"], self.num_ghost
+                            )
 
-                    elif bc['type'][idim] == BC.periodic \
-                            and not state.grid.on_upper_boundary[idim]:
+                    elif (
+                        bc["type"][idim] == BC.periodic
+                        and not state.grid.on_upper_boundary[idim]
+                    ):
                         pass  # In a parallel run, # PETSc handles periodic BCs.
 
                     else:
-                        self._bc_lower(bc['type'][idim], state, dim, state.t,
-                                        np.rollaxis(bc['array'], idim+1, 1), idim,
-                                        bc['variable'])
+                        self._bc_lower(
+                            bc["type"][idim],
+                            state,
+                            dim,
+                            state.t,
+                            np.rollaxis(bc["array"], idim + 1, 1),
+                            idim,
+                            bc["variable"],
+                        )
 
             if state.grid.on_upper_boundary[idim]:
-
                 bcs = []
                 if state.num_aux > 0:
-                    bcs.append({'array'  : self.auxbc,
-                                'type'   : self.aux_bc_upper,
-                                'custom_fun' : self.user_aux_bc_upper,
-                                'variable' : 'aux'})
-                bcs.append({'array'  : self.qbc,
-                            'type'   : self.bc_upper,
-                            'custom_fun' : self.user_bc_upper,
-                            'variable' : 'q'})
-                for (i, bc) in enumerate(bcs):
-
-                    if bc['type'][idim] == BC.custom:
+                    bcs.append(
+                        {
+                            "array": self.auxbc,
+                            "type": self.aux_bc_upper,
+                            "custom_fun": self.user_aux_bc_upper,
+                            "variable": "aux",
+                        }
+                    )
+                bcs.append(
+                    {
+                        "array": self.qbc,
+                        "type": self.bc_upper,
+                        "custom_fun": self.user_bc_upper,
+                        "variable": "q",
+                    }
+                )
+                for i, bc in enumerate(bcs):
+                    if bc["type"][idim] == BC.custom:
                         if not self._use_old_bc_sig:
-                            bc['custom_fun'](state, dim, state.t, self.qbc,
-                                             self.auxbc, self.num_ghost)
+                            bc["custom_fun"](
+                                state,
+                                dim,
+                                state.t,
+                                self.qbc,
+                                self.auxbc,
+                                self.num_ghost,
+                            )
                         else:
-                            bc['custom_fun'](state, dim, state.t, bc['array'], self.num_ghost)
+                            bc["custom_fun"](
+                                state, dim, state.t, bc["array"], self.num_ghost
+                            )
 
-                    elif bc['type'][idim] == BC.periodic \
-                            and not state.grid.on_lower_boundary[idim]:
+                    elif (
+                        bc["type"][idim] == BC.periodic
+                        and not state.grid.on_lower_boundary[idim]
+                    ):
                         pass  # In a parallel run, # PETSc handles periodic BCs.
 
                     else:
-                        self._bc_upper(bc['type'][idim], state, dim, state.t,
-                                        np.rollaxis(bc['array'], idim+1, 1), idim,
-                                        bc['variable'])
+                        self._bc_upper(
+                            bc["type"][idim],
+                            state,
+                            dim,
+                            state.t,
+                            np.rollaxis(bc["array"], idim + 1, 1),
+                            idim,
+                            bc["variable"],
+                        )
 
     def _bc_lower(self, bc_type, state, dim, t, array, idim, name):
         r"""
@@ -452,25 +520,32 @@ class Solver(object):
 
         if bc_type == BC.extrap:
             for i in range(self.num_ghost):
-                array[:,i,...] = array[:,self.num_ghost,...]
+                array[:, i, ...] = array[:, self.num_ghost, ...]
         elif bc_type == BC.periodic:
             # This process owns the whole patch
-            array[:,:self.num_ghost,...] = array[:,-2*self.num_ghost:-self.num_ghost,...]
+            array[:, : self.num_ghost, ...] = array[
+                :, -2 * self.num_ghost : -self.num_ghost, ...
+            ]
         elif bc_type == BC.wall:
-            if name == 'q':
+            if name == "q":
                 for i in range(self.num_ghost):
-                    array[:,i,...] = array[:,2*self.num_ghost-1-i,...]
+                    array[:, i, ...] = array[:, 2 * self.num_ghost - 1 - i, ...]
                     # Negate normal velocity
-                    array[self.reflect_index[idim],i,...] = \
-                        -array[self.reflect_index[idim],2*self.num_ghost-1-i,...]
+                    array[self.reflect_index[idim], i, ...] = -array[
+                        self.reflect_index[idim], 2 * self.num_ghost - 1 - i, ...
+                    ]
             else:
                 for i in range(self.num_ghost):
-                    array[:,i,...] = array[:,2*self.num_ghost-1-i,...]
+                    array[:, i, ...] = array[:, 2 * self.num_ghost - 1 - i, ...]
         else:
             if bc_type is None:
-                raise Exception('Lower boundary condition not specified for either q or aux.')
+                raise Exception(
+                    "Lower boundary condition not specified for either q or aux."
+                )
             else:
-                raise NotImplementedError("Boundary condition %s not implemented" % bc_type)
+                raise NotImplementedError(
+                    "Boundary condition %s not implemented" % bc_type
+                )
 
     def _bc_upper(self, bc_type, state, dim, t, array, idim, name):
         r"""
@@ -493,30 +568,37 @@ class Solver(object):
 
         if bc_type == BC.extrap:
             for i in range(self.num_ghost):
-                array[:,-i-1,...] = array[:,-self.num_ghost-1,...]
+                array[:, -i - 1, ...] = array[:, -self.num_ghost - 1, ...]
         elif bc_type == BC.periodic:
             # This process owns the whole patch
-            array[:,-self.num_ghost:,...] = array[:,self.num_ghost:2*self.num_ghost,...]
+            array[:, -self.num_ghost :, ...] = array[
+                :, self.num_ghost : 2 * self.num_ghost, ...
+            ]
         elif bc_type == BC.wall:
-            if name == 'q':
+            if name == "q":
                 for i in range(self.num_ghost):
-                    array[:,-i-1,...] = array[:,-2*self.num_ghost+i,...]
+                    array[:, -i - 1, ...] = array[:, -2 * self.num_ghost + i, ...]
                     #  Negate normal velocity
-                    array[self.reflect_index[idim],-i-1,...] = \
-                        -array[self.reflect_index[idim],-2*self.num_ghost+i,...]
+                    array[self.reflect_index[idim], -i - 1, ...] = -array[
+                        self.reflect_index[idim], -2 * self.num_ghost + i, ...
+                    ]
             else:
                 for i in range(self.num_ghost):
-                    array[:,-i-1,...] = array[:,-2*self.num_ghost+i,...]
+                    array[:, -i - 1, ...] = array[:, -2 * self.num_ghost + i, ...]
         else:
             if bc_type is None:
-                raise Exception('Upper boundary condition not specified for either q or aux.')
+                raise Exception(
+                    "Upper boundary condition not specified for either q or aux."
+                )
             else:
-                raise NotImplementedError("Boundary condition %s not implemented" % bc_type)
+                raise NotImplementedError(
+                    "Boundary condition %s not implemented" % bc_type
+                )
 
     # ========================================================================
     #  Evolution routines
     # ========================================================================
-    def accept_reject_step(self,state):
+    def accept_reject_step(self, state):
         cfl = self.cfl.get_cached_max()
         if cfl > self.cfl_max:
             return False
@@ -525,15 +607,15 @@ class Solver(object):
 
     def get_dt_new(self):
         cfl = self.cfl.get_cached_max()
-        self.dt = min(self.dt_max,self.dt * self.cfl_desired / cfl)
+        self.dt = min(self.dt_max, self.dt * self.cfl_desired / cfl)
 
-    def get_dt(self,t,tstart,tend,take_one_step):
+    def get_dt(self, t, tstart, tend, take_one_step):
         cfl = self.cfl.get_cached_max()
         if self.dt_variable and self.dt_old is not None:
             if cfl > 0.0:
                 self.get_dt_new()
-                self.status['dtmin'] = min(self.dt, self.status['dtmin'])
-                self.status['dtmax'] = max(self.dt, self.status['dtmax'])
+                self.status["dtmin"] = min(self.dt, self.status["dtmin"])
+                self.status["dtmax"] = max(self.dt, self.status["dtmax"])
             else:
                 self.dt = self.dt_max
         else:
@@ -543,7 +625,7 @@ class Solver(object):
         if not take_one_step:
             if t + self.dt > tend and tstart < tend:
                 self.dt = tend - t
-            if tend - t - self.dt < 1.e-14*t:
+            if tend - t - self.dt < 1.0e-14 * t:
                 self.dt = tend - t
 
     def evolve_to_time(self, solution, tend=None):
@@ -583,27 +665,26 @@ class Solver(object):
                 self.max_steps = 1
             else:
                 self.max_steps = int((tend - tstart + 1e-10) / self.dt)
-                if abs(self.max_steps*self.dt - (tend - tstart)) >      \
-                   1e-5 * (tend - tstart):
-                    raise Exception('dt does not divide (tend-tstart) and dt '
-                                    'is fixed!')
+                if abs(self.max_steps * self.dt - (tend - tstart)) > 1e-5 * (
+                    tend - tstart
+                ):
+                    raise Exception("dt does not divide (tend-tstart) and dt is fixed!")
         if self.dt_variable == 1 and self.cfl_desired > self.cfl_max:
-            raise Exception('Variable time-stepping and desired CFL > maximum '
-                            'CFL')
+            raise Exception("Variable time-stepping and desired CFL > maximum CFL")
         if not take_one_step:
             if tend <= tstart:
-                self.logger.info("Already at or beyond end time: no evolution ",
-                                 "required.")
+                self.logger.info(
+                    "Already at or beyond end time: no evolution ", "required."
+                )
                 self.max_steps = 0
 
         # Main time-stepping loop
         for n in range(self.max_steps):
-
             state = solution.state
 
             # Keep a backup in case we need to retake a time step
             if self.dt_variable:
-                q_backup = state.q.copy('F')
+                q_backup = state.q.copy("F")
                 told = solution.t
 
             if self.before_step is not None:
@@ -617,21 +698,23 @@ class Solver(object):
             self.accept_step = self.accept_reject_step(state)
             if self.accept_step:
                 # Accept this step
-                self.status['cflmax'] = max(cfl, self.status['cflmax'])
+                self.status["cflmax"] = max(cfl, self.status["cflmax"])
                 if self.dt_variable:
                     solution.t += self.dt
                 else:
                     # Avoid roundoff error if dt_variable==False:
-                    solution.t = tstart+(n+1)*self.dt
+                    solution.t = tstart + (n + 1) * self.dt
 
                 # Verbose messaging
-                self.logger.debug("Step %i  CFL = %f   dt = %f   t = %f"
-                                  % (n,cfl,self.dt,solution.t))
+                self.logger.debug(
+                    "Step %i  CFL = %f   dt = %f   t = %f"
+                    % (n, cfl, self.dt, solution.t)
+                )
 
                 self.write_gauge_values(solution)
                 # Increment number of time steps completed
                 num_steps += 1
-                self.status['numsteps'] += 1
+                self.status["numsteps"] += 1
 
             else:
                 # Reject this step
@@ -641,9 +724,8 @@ class Solver(object):
                     solution.t = told
                 else:
                     # Give up, we cannot adapt, abort
-                    self.status['cflmax'] = \
-                        max(cfl, self.status['cflmax'])
-                    raise Exception('CFL too large, giving up!')
+                    self.status["cflmax"] = max(cfl, self.status["cflmax"])
+                    raise Exception("CFL too large, giving up!")
 
             # See if we are finished yet
             if take_one_step:
@@ -654,13 +736,12 @@ class Solver(object):
         # End of main time-stepping loop -------------------------------------
 
         if not take_one_step:
-            if self.dt_variable and solution.t < tend \
-                    and num_steps == self.max_steps:
+            if self.dt_variable and solution.t < tend and num_steps == self.max_steps:
                 raise Exception("Maximum number of timesteps have been taken")
 
         return self.status
 
-    def step(self,solution):
+    def step(self, solution):
         r"""
         Take one step
 
@@ -672,44 +753,49 @@ class Solver(object):
     # ========================================================================
     #  Gauges
     # ========================================================================
-    def write_gauge_values(self,solution):
+    def write_gauge_values(self, solution):
         r"""Write solution (or derived quantity) values at each gauge coordinate
-            to file.
+        to file.
         """
         import numpy as np
+
         if solution.num_aux == 0:
             aux = None
-        for i,gauge in enumerate(solution.state.grid.gauges):
+        for i, gauge in enumerate(solution.state.grid.gauges):
             if self.num_dim == 1:
-                ix=gauge[0]
+                ix = gauge[0]
                 if solution.num_aux > 0:
-                    aux = solution.state.aux[:,ix]
-                q=solution.state.q[:,ix]
+                    aux = solution.state.aux[:, ix]
+                q = solution.state.q[:, ix]
             elif self.num_dim == 2:
                 ix, iy = gauge
                 if solution.num_aux > 0:
-                    aux = solution.state.aux[:,ix,iy]
-                q=solution.state.q[:,ix,iy]
-            p=self.compute_gauge_values(q,aux)
-            if not hasattr(p,'__iter__'):
+                    aux = solution.state.aux[:, ix, iy]
+                q = solution.state.q[:, ix, iy]
+            p = self.compute_gauge_values(q, aux)
+            if not hasattr(p, "__iter__"):
                 p = [p]
-            t=solution.t
+            t = solution.t
             if solution.state.keep_gauges:
                 gauge_data = solution.state.gauge_data
                 if len(gauge_data) == len(solution.state.grid.gauges):
-                    gauge_data[i]=np.vstack((gauge_data[i],np.append(t,p)))
+                    gauge_data[i] = np.vstack((gauge_data[i], np.append(t, p)))
                 else:
-                    gauge_data.append(np.append(t,p))
+                    gauge_data.append(np.append(t, p))
 
             try:
-                solution.state.grid.gauge_files[i].write(str(t)+' '+' '.join(str(j)
-                                                         for j in p)+'\n')
+                solution.state.grid.gauge_files[i].write(
+                    str(t) + " " + " ".join(str(j) for j in p) + "\n"
+                )
             except IOError:
-                raise Exception("Gauge files are not set up correctly. You should call \
+                raise Exception(
+                    "Gauge files are not set up correctly. You should call \
                        \nthe method `setup_gauge_files` of the Grid class object \
-                       \nbefore any call for `write_gauge_values` from the Solver class.")
+                       \nbefore any call for `write_gauge_values` from the Solver class."
+                )
 
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

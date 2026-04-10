@@ -7,7 +7,7 @@ PTHA Excel files.  Uses Clawpack's ``dtopotools`` for the Okada computation.
 """
 
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import rasterio
@@ -96,9 +96,7 @@ class Tsunami:
         subfault.rake = rake
         subfault.slip = slip
         subfault.coordinate_specification = "top center"
-        self.fault = dtopotools.Fault(
-            subfaults=[subfault], input_units=input_units
-        )
+        self.fault = dtopotools.Fault(subfaults=[subfault], input_units=input_units)
 
     # ------------------------------------------------------------------
     # Read fault from file
@@ -221,9 +219,7 @@ class Tsunami:
         event_indices = list(
             map(int, event_row["event_index_string"].strip().split("-")[:-1])
         )
-        slips = list(
-            map(float, event_row["event_slip_string"].strip().split("_")[:-1])
-        )
+        slips = list(map(float, event_row["event_slip_string"].strip().split("_")[:-1]))
 
         input_units = {
             "length": "km",
@@ -249,9 +245,7 @@ class Tsunami:
             subfault.coordinate_specification = "centroid"
             fault_segments.append(subfault)
 
-        self.fault = dtopotools.Fault(
-            subfaults=fault_segments, input_units=input_units
-        )
+        self.fault = dtopotools.Fault(subfaults=fault_segments, input_units=input_units)
 
     # ------------------------------------------------------------------
     # Compute displacement
@@ -281,7 +275,9 @@ class Tsunami:
             Standard deviation for the Gaussian filter (in grid cells).
         """
         if self.fault is None:
-            raise RuntimeError("No fault defined. Call set_subfault() or read_fault_file() first.")
+            raise RuntimeError(
+                "No fault defined. Call set_subfault() or read_fault_file() first."
+            )
 
         x, y = self.fault.create_dtopo_xy(buffer_size=buffer_size, dx=dx)
         dtopo = self.fault.create_dtopography(x, y)

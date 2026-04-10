@@ -4,34 +4,39 @@ r"""
 Pyclaw utility methods
 """
 
-import time
-import os
-import sys
-import subprocess
-import logging
-import tempfile
 import inspect
+import logging
+import os
+import subprocess
+import sys
+import tempfile
+import time
 import warnings
 
 import numpy as np
-import contextlib
 
+LOGGING_LEVELS = {
+    0: logging.CRITICAL,
+    1: logging.ERROR,
+    2: logging.WARNING,
+    3: logging.INFO,
+    4: logging.DEBUG,
+}
 
-LOGGING_LEVELS = {0:logging.CRITICAL,
-                  1:logging.ERROR,
-                  2:logging.WARNING,
-                  3:logging.INFO,
-                  4:logging.DEBUG}
 
 def add_parent_doc(parent):
-    """add parent documentation for a class""" 
-    
-    return """
+    """add parent documentation for a class"""
+
+    return (
+        """
     **Parent Class Documentation:**
-    """ + parent.__doc__
+    """
+        + parent.__doc__
+    )
+
 
 def run_serialized(fun):
-    """ Decorates a function to only run serially, even if called in parallel.
+    """Decorates a function to only run serially, even if called in parallel.
 
     In a parallel communicator, the first process will run while the remaining processes
     block on a barrier.  In a serial run, the function will be called directly.
@@ -42,6 +47,7 @@ def run_serialized(fun):
 
     try:
         from petsc4py import PETSc
+
         is_parallel = True
     except ImportError:
         is_parallel = False
@@ -49,17 +55,21 @@ def run_serialized(fun):
     if is_parallel:
         rank = PETSc.COMM_WORLD.getRank()
         if rank == 0:
+
             def serial_fun(*args, **kwargs):
                 fun(*args, **kwargs)
                 PETSc.COMM_WORLD.Barrier()
         else:
+
             def serial_fun(*args, **kwargs):
                 PETSc.COMM_WORLD.Barrier()
     else:
+
         def serial_fun(*args, **kwargs):
             fun(*args, **kwargs)
 
     return serial_fun
+
 
 @run_serialized
 def inplace_build(working_dir, warn=True):
@@ -75,12 +85,15 @@ def inplace_build(working_dir, warn=True):
         warnings.warn("missing extension modules")
         warnings.warn("running python setup.py build_ext -i in %s" % working_dir)
 
-    subprocess.check_call('python setup.py build_ext -i', shell=True, cwd=working_dir)
+    subprocess.check_call("python setup.py build_ext -i", shell=True, cwd=working_dir)
 
     if warn:
-        warnings.warn("successfully executed python setup.py build_ext -i in %s" % working_dir)
+        warnings.warn(
+            "successfully executed python setup.py build_ext -i in %s" % working_dir
+        )
 
-def run_app_from_main(application,setplot=None):
+
+def run_app_from_main(application, setplot=None):
     r"""
     Runs an application from pyclaw/examples/, automatically parsing command line keyword
     arguments (key=value) as parameters to the application, with positional
@@ -96,50 +109,58 @@ def run_app_from_main(application,setplot=None):
     # will be passed to PETSc
     petsc_args, pyclaw_kwargs = _info_from_argv(sys.argv)
 
-    if 'use_petsc' in pyclaw_kwargs and pyclaw_kwargs['use_petsc']:
+    if "use_petsc" in pyclaw_kwargs and pyclaw_kwargs["use_petsc"]:
         import petsc4py
-        petsc_args = [arg.replace('--','-') for arg in sys.argv[1:] if '=' not in arg]
+
+        petsc_args = [arg.replace("--", "-") for arg in sys.argv[1:] if "=" not in arg]
         petsc4py.init(petsc_args)
         from clawpack import petclaw as pyclaw
     else:
         from clawpack import pyclaw
 
     if sys.version_info >= (2, 7):
-        app_kwargs = {key: value for key, value in pyclaw_kwargs.items() 
-                      if not key in ('htmlplot','iplot')}
+        app_kwargs = {
+            key: value
+            for key, value in pyclaw_kwargs.items()
+            if key not in ("htmlplot", "iplot")
+        }
     else:
         # the above fails with Python < 2.7, so write it out...
         app_kwargs = {}
-        for key,value in pyclaw_kwargs.items():
-            if key not in ('htmlplot','iplot'):
+        for key, value in pyclaw_kwargs.items():
+            if key not in ("htmlplot", "iplot"):
                 app_kwargs[key] = value
 
-    claw=application(**app_kwargs)
+    claw = application(**app_kwargs)
 
     # Solve
     status = claw.run()
 
     # Plot results
-    htmlplot = pyclaw_kwargs.get('htmlplot',False)
-    iplot    = pyclaw_kwargs.get('iplot',False)
-    outdir   = pyclaw_kwargs.get('outdir','./_output')
-    if htmlplot:  
+    htmlplot = pyclaw_kwargs.get("htmlplot", False)
+    iplot = pyclaw_kwargs.get("iplot", False)
+    outdir = pyclaw_kwargs.get("outdir", "./_output")
+    if htmlplot:
         if setplot is not None:
-            pyclaw.plot.html_plot(outdir=outdir,setplot=setplot)
+            pyclaw.plot.html_plot(outdir=outdir, setplot=setplot)
         else:
             pyclaw.plot.html_plot(outdir=outdir)
-    if iplot:     
+    if iplot:
         if setplot is not None:
-            pyclaw.plot.interactive_plot(outdir=outdir,setplot=setplot)
+            pyclaw.plot.interactive_plot(outdir=outdir, setplot=setplot)
         else:
             pyclaw.plot.interactive_plot(outdir=outdir)
 
     return claw
 
+
 class VerifyError(Exception):
     pass
 
-def gen_variants(application, verifier, kernel_languages=('Fortran',), disable_petsc=False, **kwargs):
+
+def gen_variants(
+    application, verifier, kernel_languages=("Fortran",), disable_petsc=False, **kwargs
+):
     r"""
     Generator of runnable variants of a test application given a verifier
 
@@ -164,16 +185,17 @@ def gen_variants(application, verifier, kernel_languages=('Fortran',), disable_p
             test_name = application.__module__
         except:
             test_name = inspect.getmodule(application)
-        if 'solver_type' in test_kwargs:
-            solver_info = 'solver_type={solver_type!s}, '
+        if "solver_type" in test_kwargs:
+            solver_info = "solver_type={solver_type!s}, "
         else:
-            solver_info = ''
+            solver_info = ""
         test = lambda: test_app(application, verifier, test_kwargs)
-        test.description = '%s(%s)' % (test_name, str(kwargs))
+        test.description = "%s(%s)" % (test_name, str(kwargs))
         yield test
     return
 
-def build_variant_arg_dicts(kernel_languages=('Fortran',), disable_petsc=False):
+
+def build_variant_arg_dicts(kernel_languages=("Fortran",), disable_petsc=False):
     import itertools
 
     # test petsc4py only if it is available
@@ -181,15 +203,17 @@ def build_variant_arg_dicts(kernel_languages=('Fortran',), disable_petsc=False):
     if not disable_petsc:
         try:
             import petsc4py
-            use_petsc_opts=(True,False)
-        except ImportError:
-            pass # petsc starts disabled
 
-    opt_names = 'use_petsc','kernel_language'
-    opt_product = itertools.product(use_petsc_opts,kernel_languages)
-    arg_dicts = [dict(list(zip(opt_names,argset))) for argset in opt_product]
+            use_petsc_opts = (True, False)
+        except ImportError:
+            pass  # petsc starts disabled
+
+    opt_names = "use_petsc", "kernel_language"
+    opt_product = itertools.product(use_petsc_opts, kernel_languages)
+    arg_dicts = [dict(list(zip(opt_names, argset))) for argset in opt_product]
 
     return arg_dicts
+
 
 def test_app_variants(application, verifier, kernel_languages, **kwargs):
 
@@ -199,6 +223,7 @@ def test_app_variants(application, verifier, kernel_languages, **kwargs):
         test_kwargs.update(kwargs)
         test_app(application, verifier, test_kwargs)
     return
+
 
 def test_app(application, verifier, kwargs):
     r"""
@@ -222,14 +247,15 @@ def test_app(application, verifier, kwargs):
     """
     print(kwargs)
 
-    if 'use_petsc' in kwargs and not kwargs['use_petsc']:
+    if "use_petsc" in kwargs and not kwargs["use_petsc"]:
         try:
             # don't duplicate serial test runs
             from petsc4py import PETSc
+
             rank = PETSc.COMM_WORLD.getRank()
             if rank != 0:
                 return
-        except ImportError as e:
+        except ImportError:
             pass
 
     claw = application(**kwargs)
@@ -237,8 +263,7 @@ def test_app(application, verifier, kwargs):
     check_values = verifier(claw)
 
     if check_values is not None:
-        err = \
-        """%s
+        err = """%s
 ********************************************************************************
 verification function
 %s
@@ -248,16 +273,18 @@ norm of test data    : %s
 test error           : %s
 %s
 ********************************************************************************
-""" % \
-        (inspect.getsourcefile(application),
-         inspect.getsource(verifier),
-         kwargs,
-         check_values[0],
-         check_values[1],
-         check_values[2],
-         check_values[3])
+""" % (
+            inspect.getsourcefile(application),
+            inspect.getsource(verifier),
+            kwargs,
+            check_values[0],
+            check_values[1],
+            check_values[2],
+            check_values[3],
+        )
         raise VerifyError(err)
     return
+
 
 def check_diff(expected, test, **kwargs):
     r"""
@@ -265,25 +292,38 @@ def check_diff(expected, test, **kwargs):
 
     This function expects either the keyword argument 'abstol' or 'reltol'.
     """
-    if 'delta' in kwargs:
-        d = np.prod(kwargs['delta'])
+    if "delta" in kwargs:
+        d = np.prod(kwargs["delta"])
     else:
         d = 1.0
-    err_norm = d*np.linalg.norm(expected - test)
-    expected_norm = d*np.linalg.norm(expected)
-    test_norm = d*np.linalg.norm(test)
-    if 'abstol' in kwargs:
-        if err_norm < kwargs['abstol']: return None
-        else: return (expected_norm, test_norm, err_norm,
-                      'abstol  : %s' % kwargs['abstol'])
-    elif 'reltol' in kwargs:
-        if err_norm/expected_norm < kwargs['reltol']: return None
-        else: return (expected_norm, test_norm, err_norm,
-                      'reltol  : %s' % kwargs['reltol'])
+    err_norm = d * np.linalg.norm(expected - test)
+    expected_norm = d * np.linalg.norm(expected)
+    test_norm = d * np.linalg.norm(test)
+    if "abstol" in kwargs:
+        if err_norm < kwargs["abstol"]:
+            return None
+        else:
+            return (
+                expected_norm,
+                test_norm,
+                err_norm,
+                "abstol  : %s" % kwargs["abstol"],
+            )
+    elif "reltol" in kwargs:
+        if err_norm / expected_norm < kwargs["reltol"]:
+            return None
+        else:
+            return (
+                expected_norm,
+                test_norm,
+                err_norm,
+                "reltol  : %s" % kwargs["reltol"],
+            )
     else:
-        raise Exception('Incorrect use of check_diff verifier, specify tol!')
+        raise Exception("Incorrect use of check_diff verifier, specify tol!")
 
-def check_solutions_are_same(sol_a,sol_b):
+
+def check_solutions_are_same(sol_a, sol_b):
     assert len(sol_a.states) == len(sol_b.states)
     assert sol_a.t == sol_b.t
     for state in sol_a.states:
@@ -292,38 +332,51 @@ def check_solutions_are_same(sol_a,sol_b):
                 break
 
         # Required state attributes
-        assert np.linalg.norm(state.q - ref_state.q) < 1.e-6 # Not sure why this can be so large
+        assert (
+            np.linalg.norm(state.q - ref_state.q) < 1.0e-6
+        )  # Not sure why this can be so large
         if ref_state.aux is not None:
-            assert np.linalg.norm(state.aux - ref_state.aux) < 1.e-16
-        for attr in ['t', 'num_eqn', 'num_aux']:
-            assert getattr(state,attr) == getattr(ref_state,attr)
+            assert np.linalg.norm(state.aux - ref_state.aux) < 1.0e-16
+        for attr in ["t", "num_eqn", "num_aux"]:
+            assert getattr(state, attr) == getattr(ref_state, attr)
         # Optional state attributes
-        for attr in ['patch_index', 'level']:
-            if hasattr(ref_state,attr):
-                assert getattr(state,attr) == getattr(ref_state,attr)
+        for attr in ["patch_index", "level"]:
+            if hasattr(ref_state, attr):
+                assert getattr(state, attr) == getattr(ref_state, attr)
 
         patch = state.patch
         ref_patch = ref_state.patch
         # Required patch attributes
-        for attr in ['patch_index', 'level']:
-            assert getattr(patch,attr) == getattr(ref_patch,attr)
+        for attr in ["patch_index", "level"]:
+            assert getattr(patch, attr) == getattr(ref_patch, attr)
 
         dims = patch.dimensions
         ref_dims = ref_patch.dimensions
-        for dim, ref_dim in zip(dims,ref_dims):
+        for dim, ref_dim in zip(dims, ref_dims):
             # Required dim attributes
-            for attr in ['num_cells','lower','delta']:
-                assert getattr(dim,attr) == getattr(ref_dim,attr)
+            for attr in ["num_cells", "lower", "delta"]:
+                assert getattr(dim, attr) == getattr(ref_dim, attr)
             # Optional dim attributes
-            for attr in ['units','on_lower_boundary','on_upper_boundary']:
-                if hasattr(ref_dim,attr):
-                    assert getattr(dim,attr) == getattr(ref_dim,attr)
+            for attr in ["units", "on_lower_boundary", "on_upper_boundary"]:
+                if hasattr(ref_dim, attr):
+                    assert getattr(dim, attr) == getattr(ref_dim, attr)
+
+
 # ============================================================================
 #  F2PY Utility Functions
 # ============================================================================
-def compile_library(source_list,module_name,interface_functions=[],
-                        local_path='./',library_path='./',f2py_flags='',
-                        FC=None,FFLAGS=None,recompile=False,clean=False):
+def compile_library(
+    source_list,
+    module_name,
+    interface_functions=[],
+    local_path="./",
+    library_path="./",
+    f2py_flags="",
+    FC=None,
+    FFLAGS=None,
+    recompile=False,
+    clean=False,
+):
     r"""
     Compiles and wraps fortran source into a callable module in python.
 
@@ -383,9 +436,9 @@ def compile_library(source_list,module_name,interface_functions=[],
     """
 
     # Setup logger
-    logger = logging.getLogger('f2py')
+    logger = logging.getLogger("f2py")
     temp_file = tempfile.TemporaryFile()
-    logger.info('Compiling %s' % module_name)
+    logger.info("Compiling %s" % module_name)
 
     # Force recompile if the clean flag is set
     if clean:
@@ -399,16 +452,16 @@ def compile_library(source_list,module_name,interface_functions=[],
 
     # Fetch environment variables we need for compilation
     if FC is None:
-        if 'FC' in os.environ:
-            FC = os.environ['FC']
+        if "FC" in os.environ:
+            FC = os.environ["FC"]
         else:
-            FC = 'gfortran'
+            FC = "gfortran"
 
     if FFLAGS is None:
-        if 'FFLAGS' in os.environ:
-            FFLAGS = os.environ['FFLAGS']
+        if "FFLAGS" in os.environ:
+            FFLAGS = os.environ["FFLAGS"]
         else:
-            FFLAGS = ''
+            FFLAGS = ""
 
     # Create the list of paths to sources
     path_list = []
@@ -427,14 +480,14 @@ def compile_library(source_list,module_name,interface_functions=[],
             source = os.path.split(source)
 
         # Search for the source file in local_path and then library_path
-        if os.path.exists(os.path.join(local_path,source)):
-            path_list.append(os.path.join(local_path,source))
+        if os.path.exists(os.path.join(local_path, source)):
+            path_list.append(os.path.join(local_path, source))
             continue
-        elif os.path.exists(os.path.join(library_path,source)):
-            path_list.append(os.path.join(library_path,source))
+        elif os.path.exists(os.path.join(library_path, source)):
+            path_list.append(os.path.join(library_path, source))
             continue
         else:
-            raise IOError('Could not find source file %s' % source)
+            raise IOError("Could not find source file %s" % source)
 
     # Compile each of the source files if the object files are not present or
     # if the modification date of the source file is newer than the object
@@ -442,11 +495,13 @@ def compile_library(source_list,module_name,interface_functions=[],
     object_list = []
     src_list = []
     for path in path_list:
-        object_path = os.path.join(os.path.split(path)[0],
-            '.'.join((os.path.split(path)[1].split('.')[:-1][0],'o')))
+        object_path = os.path.join(
+            os.path.split(path)[0],
+            ".".join((os.path.split(path)[1].split(".")[:-1][0], "o")),
+        )
 
         # Check to see if this path contains one of the interface functions
-        if os.path.split(path)[1].split('.')[:-1][0] in interface_functions:
+        if os.path.split(path)[1].split(".")[:-1][0] in interface_functions:
             src_list.append(path)
             continue
         # If there are no interface functions specified, then all source files
@@ -462,14 +517,14 @@ def compile_library(source_list,module_name,interface_functions=[],
                 object_list.append(object_path)
                 continue
         # Compile the source file into the object file
-        command = '%s %s -c %s -o %s' % (FC,FFLAGS,path,object_path)
+        command = "%s %s -c %s -o %s" % (FC, FFLAGS, path, object_path)
         logger.debug(command)
-        subprocess.call(command,shell=True,stdout=temp_file)
+        subprocess.call(command, shell=True, stdout=temp_file)
         object_list.append(object_path)
 
     # Check to see if recompile is needed
     if not recompile:
-        module_path = os.path.join('.','.'.join((module_name,'so')))
+        module_path = os.path.join(".", ".".join((module_name, "so")))
         if os.path.exists(module_path):
             for src in src_list:
                 if os.path.getmtime(module_path) < os.path.getmtime(src):
@@ -486,26 +541,28 @@ def compile_library(source_list,module_name,interface_functions=[],
         # Wrap the object files into a python module
         f2py_command = "f2py -c"
         # Add standard compiler flags
-        f2py_command = ' '.join((f2py_command,f2py_flags))
-        f2py_command = ' '.join((f2py_command,"--f90flags='%s'" % FFLAGS))
+        f2py_command = " ".join((f2py_command, f2py_flags))
+        f2py_command = " ".join((f2py_command, "--f90flags='%s'" % FFLAGS))
         # Add module names
-        f2py_command = ' '.join((f2py_command,'-m %s' % module_name))
+        f2py_command = " ".join((f2py_command, "-m %s" % module_name))
         # Add source files
-        f2py_command = ' '.join((f2py_command,' '.join(src_list)))
+        f2py_command = " ".join((f2py_command, " ".join(src_list)))
         # Add object files
-        f2py_command = ' '.join((f2py_command,' '.join(object_list)))
+        f2py_command = " ".join((f2py_command, " ".join(object_list)))
         # Add interface functions
         if len(interface_functions) > 0:
-            f2py_command = ' '.join( (f2py_command,'only:') )
+            f2py_command = " ".join((f2py_command, "only:"))
             for interface in interface_functions:
-                f2py_command = ' '.join( (f2py_command,interface) )
-            f2py_command = ''.join( (f2py_command,' :') )
+                f2py_command = " ".join((f2py_command, interface))
+            f2py_command = "".join((f2py_command, " :"))
         logger.debug(f2py_command)
-        status = subprocess.call(f2py_command,shell=True,stdout=temp_file)
+        status = subprocess.call(f2py_command, shell=True, stdout=temp_file)
         if status == 0:
             logger.info("Module %s compiled" % module_name)
         else:
-            logger.info("Module %s failed to compile with code %s" % (module_name,status))
+            logger.info(
+                "Module %s failed to compile with code %s" % (module_name, status)
+            )
             sys.exit(13)
     else:
         logger.info("Module %s is up to date." % module_name)
@@ -514,7 +571,8 @@ def compile_library(source_list,module_name,interface_functions=[],
     logger.debug(temp_file.read())
     temp_file.close()
 
-def construct_function_handle(path,function_name=None):
+
+def construct_function_handle(path, function_name=None):
     r"""
     Constructs a function handle from the file at path.
 
@@ -533,24 +591,24 @@ def construct_function_handle(path,function_name=None):
     """
     # Determine the resulting function_name
     if function_name is None:
-        function_name = path.split('/')[-1].split('.')[0]
+        function_name = path.split("/")[-1].split(".")[0]
 
     full_path = os.path.abspath(path)
     if os.path.exists(full_path):
-        suffix = path.split('.')[-1]
+        suffix = path.split(".")[-1]
         # This is a python file and we just need to read it and map it
-        if suffix in ['py']:
-            exec(compile(open(full_path).read(), full_path, 'exec'),globals())
-            return eval('%s' % function_name)
+        if suffix in ["py"]:
+            exec(compile(open(full_path).read(), full_path, "exec"), globals())
+            return eval("%s" % function_name)
         else:
             raise Exception("Invalid file type for function handle.")
     else:
         raise Exception("Invalid file path %s" % path)
 
 
-#---------------------------------------------------------
-def read_data_line(inputfile,num_entries=1,data_type=float):
-#---------------------------------------------------------
+# ---------------------------------------------------------
+def read_data_line(inputfile, num_entries=1, data_type=float):
+    # ---------------------------------------------------------
     r"""
     Read data a single line from an input file
 
@@ -565,23 +623,24 @@ def read_data_line(inputfile,num_entries=1,data_type=float):
 
     """
     l = []
-    while  l==[]:  # skip over blank lines
+    while l == []:  # skip over blank lines
         line = inputfile.readline()
-        if line == '':
-            raise IOError('*** Reached EOF in file %s' % inputfile.name)
+        if line == "":
+            raise IOError("*** Reached EOF in file %s" % inputfile.name)
         l = line.split()
     if num_entries == 1:  # This is a convenience for calling functions
         return data_type(l[0])
-    val = np.empty(num_entries,data_type)
+    val = np.empty(num_entries, data_type)
     if num_entries > len(l):
-        print('Error in read_data_line: num_entries = ', num_entries)
-        print('  is larger than length of l = ',l)
+        print("Error in read_data_line: num_entries = ", num_entries)
+        print("  is larger than length of l = ", l)
     val = [data_type(entry) for entry in l[:num_entries]]
     return val
 
-#----------------------------------------
+
+# ----------------------------------------
 def convert_fort_double_to_float(number):
-#----------------------------------------
+    # ----------------------------------------
     r"""
     Converts a fortran format double to a float
 
@@ -591,20 +650,21 @@ def convert_fort_double_to_float(number):
     be of the form "1.0d0"
 
     """
-    a = number.split('d')
-    return float(a[0])*10**float(a[1])
+    a = number.split("d")
+    return float(a[0]) * 10 ** float(a[1])
 
-#-----------------------------
+
+# -----------------------------
 def current_time(addtz=False):
-#-----------------------------
+    # -----------------------------
     # determine current time and reformat:
     time1 = time.asctime()
     year = time1[-5:]
     day = time1[:-14]
     hour = time1[-13:-5]
-    current_time = day + year + ' at ' + hour
+    current_time = day + year + " at " + hour
     if addtz:
-        current_time = current_time + ' ' + time.tzname[time.daylight]
+        current_time = current_time + " " + time.tzname[time.daylight]
     return current_time
 
 
@@ -626,6 +686,7 @@ def _method_info_from_argv(argv=None):
     @returns (<method-name>, <args>, <kwargs>)
     """
     import json
+
     if argv is None:
         argv = sys.argv
 
@@ -633,21 +694,24 @@ def _method_info_from_argv(argv=None):
     args = []
     kwargs = {}
     for s in arg_strs:
-        if s.count('=') == 1:
-            key, value = s.split('=', 1)
+        if s.count("=") == 1:
+            key, value = s.split("=", 1)
         else:
             key, value = None, s
         try:
             value = json.loads(value)
         except ValueError:
             pass
-        if value=='True': value=True
-        if value.lower()=='false': value=False
+        if value == "True":
+            value = True
+        if value.lower() == "false":
+            value = False
         if key:
             kwargs[key] = value
         else:
             args.append(value)
     return method_name, args, kwargs
+
 
 def _info_from_argv(argv=None):
     """Command-line -> method call arg processing.
@@ -667,6 +731,7 @@ def _info_from_argv(argv=None):
     @returns (<method-name>, <args>, <kwargs>)
     """
     import json
+
     if argv is None:
         argv = sys.argv
 
@@ -674,21 +739,24 @@ def _info_from_argv(argv=None):
     args = []
     kwargs = {}
     for s in arg_strs:
-        if s.count('=') == 1:
-            key, value = s.split('=', 1)
+        if s.count("=") == 1:
+            key, value = s.split("=", 1)
         else:
             key, value = None, s
         try:
             value = json.loads(value)
         except ValueError:
             pass
-        if value=='True': value=True
-        if value=='False': value=False
+        if value == "True":
+            value = True
+        if value == "False":
+            value = False
         if key:
             kwargs[key] = value
         else:
             args.append(value)
     return args, kwargs
+
 
 def _arguments_str_from_dictionary(options):
     """
@@ -698,15 +766,17 @@ def _arguments_str_from_dictionary(options):
     option_string = ""
     for k in options:
         if isinstance(options[k], str):
-            option_string += k+"='"+str(options[k])+"',"
+            option_string += k + "='" + str(options[k]) + "',"
         else:
-            option_string += k+"="+str(options[k])+","
-    option_string = option_string.strip(',')
+            option_string += k + "=" + str(options[k]) + ","
+    option_string = option_string.strip(",")
 
     return option_string
-#-----------------------------
+
+
+# -----------------------------
 class FrameCounter:
-#-----------------------------
+    # -----------------------------
     r"""
     Simple frame counter
 
@@ -716,6 +786,7 @@ class FrameCounter:
 
     Initializes to 0
     """
+
     def __init__(self):
         self.__frame = 0
 
@@ -727,16 +798,19 @@ class FrameCounter:
         Increment the counter by one
         """
         self.__frame += 1
-    def set_counter(self,new_frame_num):
+
+    def set_counter(self, new_frame_num):
         r"""
         Set the counter to new_frame_num
         """
         self.__frame = new_frame_num
+
     def get_counter(self):
         r"""
         Get the current frame number
         """
         return self.__frame
+
     def reset_counter(self):
         r"""
         Reset the counter to 0

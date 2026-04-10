@@ -5,13 +5,11 @@ locally. Provides a GeoDataFrame with fault traces and attributes
 (dip, rake, slip rate, etc.) compatible with Okada parameters.
 """
 
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import geopandas as gpd
 import numpy as np
-
 
 # Default S3 location for the GEM faults file
 S3_BUCKET = "deltares-ddb"
@@ -105,9 +103,7 @@ def _download_from_s3(
         print(f"Could not download GEM faults from S3: {e}")
 
 
-def get_okada_params_from_fault(
-    gdf: gpd.GeoDataFrame, index: int
-) -> Dict[str, Any]:
+def get_okada_params_from_fault(gdf: gpd.GeoDataFrame, index: int) -> Dict[str, Any]:
     """Extract Okada-compatible parameters from a GEM fault feature.
 
     Computes source location (midpoint), strike (from geometry azimuth),

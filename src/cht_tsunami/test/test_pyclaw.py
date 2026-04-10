@@ -1,7 +1,18 @@
-import matplotlib.pyplot as plt
+"""Example / integration script: generate a tsunami source and apply it to SFINCS.
+
+This script demonstrates the full workflow:
+1. Build a tsunami initial condition from a source file or GUI parameters.
+2. Write the displacement field to a NetCDF file.
+3. Read a SFINCS model and interpolate the displacement onto its mesh.
+4. Write updated SFINCS input files.
+
+Note: This script references a local SFINCS model path and is intended
+for manual testing only, not for automated CI runs.
+"""
+
+from cht_sfincs.sfincs import SFINCS
 
 from cht_tsunami.tsunami import Tsunami, get_source_file_details
-from cht_sfincs.sfincs import SFINCS
 
 source_details = get_source_file_details()
 
@@ -11,17 +22,22 @@ if source_details["source_type"] == "GEOTIFF":
 elif source_details["source_type"] == "SIFTCSV":
     ts = Tsunami(csv_file=source_details["file_name"], plot=False, smoothing=True)
 elif source_details["source_type"] == "AUS_PTHA":
-    ts = Tsunami(event_excel_file=source_details["event_excel_file"], 
-                 event_row_number=source_details["event_row_number"], 
-                 statistics_excel_file=source_details["statistics_excel_file"], 
-                 plot=False, smoothing=False)
+    ts = Tsunami(
+        event_excel_file=source_details["event_excel_file"],
+        event_row_number=source_details["event_row_number"],
+        statistics_excel_file=source_details["statistics_excel_file"],
+        plot=False,
+        smoothing=False,
+    )
 
 ts.write("tsunami.nc")
 
 ts.plot_fullfault()
 
 # Read SFINCS model
-sf = SFINCS(root=r"C:/Users/Lauren/Desktop/Tools/SFINCS_Tsunami/models/global", mode="r")
+sf = SFINCS(
+    root=r"C:/Users/Lauren/Desktop/Tools/SFINCS_Tsunami/models/global", mode="r"
+)
 
 # Interpolate the data to the mesh
 sf.initial_conditions.interpolate(ts.data, var_name="dZ")

@@ -1,29 +1,31 @@
+import os
+import re
+import shutil
 
-import os,sys,glob,re,shutil
 
-#=================================================================
+# =================================================================
 def convert():
-    if os.path.isfile('claw1ez.data'):
+    if os.path.isfile("claw1ez.data"):
         ndim = 1
         rundata = make_rundata(1)
         make_setplot1(rundata)
         make_Makefile1()
-    elif os.path.isfile('claw2ez.data'):
+    elif os.path.isfile("claw2ez.data"):
         ndim = 2
         rundata = make_rundata(2)
         make_setplot2(rundata)
         make_Makefile2()
-    elif os.path.isfile('amr2ez.data'):
+    elif os.path.isfile("amr2ez.data"):
         ndim = 2
-        #rundata = make_rundata(2, amr=True)
+        # rundata = make_rundata(2, amr=True)
         print("2d amr not yet implemented")
-    elif os.path.isfile('claw3ez.data'):
+    elif os.path.isfile("claw3ez.data"):
         ndim = 3
-        #rundata = make_rundata(3)
+        # rundata = make_rundata(3)
         print("3d not yet implemented")
-    elif os.path.isfile('amr3ez.data'):
+    elif os.path.isfile("amr3ez.data"):
         ndim = 3
-        #rundata = make_rundata(2, amr=True)
+        # rundata = make_rundata(2, amr=True)
         print("3d amr not yet implemented")
     else:
         print("Could not find a clawpack data file")
@@ -31,66 +33,67 @@ def convert():
     make_README(ndim)
     fix_setprob(ndim)
 
-    
-#=================================================================
+
+# =================================================================
 def make_rundata(ndim):
-    fname = 'claw%sez.data' % ndim
-    fname43 = 'claw%sez.data.claw43' % ndim
+    fname = "claw%sez.data" % ndim
+    fname43 = "claw%sez.data.claw43" % ndim
     if not os.path.isfile(fname43):
         try:
             shutil.move(fname, fname43)
-            print("=== Moved %s to %s"  % (fname, fname43))
+            print("=== Moved %s to %s" % (fname, fname43))
         except:
             print("*** Could not find ", fname)
             raise
             return
-    clawdata_file = open(fname43,'r')
+    clawdata_file = open(fname43, "r")
     lines = clawdata_file.readlines()
+
     class rundata(object):
-        mx          = int(next(lines))  # returns number from next nonempty line
-        if ndim>1:
-            my          = int(next(lines))
-        if ndim>2:
-            mz          = int(next(lines))
-        nout        = int(next(lines))
-        outstyle    = int(next(lines))
-        tfinal      = float(next(lines))
-        if outstyle!=1:
+        mx = int(next(lines))  # returns number from next nonempty line
+        if ndim > 1:
+            my = int(next(lines))
+        if ndim > 2:
+            mz = int(next(lines))
+        nout = int(next(lines))
+        outstyle = int(next(lines))
+        tfinal = float(next(lines))
+        if outstyle != 1:
             outstyle = 1
             tfinal = 1.0
             print("*** Warning: need to check outstyle in setrun.py")
-        dt_initial  = float(next(lines))
-        dt_max      = float(next(lines))
-        cfl_max     = float(next(lines))
+        dt_initial = float(next(lines))
+        dt_max = float(next(lines))
+        cfl_max = float(next(lines))
         cfl_desired = float(next(lines))
-        max_steps   = int(next(lines))
+        max_steps = int(next(lines))
         dt_variable = int(next(lines))
-        order       = int(next(lines))
+        order = int(next(lines))
         order_trans = int(next(lines))
-        verbosity   = int(next(lines))
-        src_split   = int(next(lines))
-        mcapa       = int(next(lines))
-        maux        = int(next(lines))
-        meqn        = int(next(lines))
-        mwaves      = int(next(lines))
-        mthlim_1    = int(next(lines))
-        mthlim      = mwaves*[mthlim_1]   # set all elements to first seen!
-        t0          = float(next(lines))
-        xlower      = float(next(lines))
-        xupper      = float(next(lines))
-        if ndim>1:
-            ylower      = float(next(lines))
-            yupper      = float(next(lines))
-        if ndim>2:
-            zlower      = float(next(lines))
-            zupper      = float(next(lines))
-        mbc          = int(next(lines))
+        verbosity = int(next(lines))
+        src_split = int(next(lines))
+        mcapa = int(next(lines))
+        maux = int(next(lines))
+        meqn = int(next(lines))
+        mwaves = int(next(lines))
+        mthlim_1 = int(next(lines))
+        mthlim = mwaves * [mthlim_1]  # set all elements to first seen!
+        t0 = float(next(lines))
+        xlower = float(next(lines))
+        xupper = float(next(lines))
+        if ndim > 1:
+            ylower = float(next(lines))
+            yupper = float(next(lines))
+        if ndim > 2:
+            zlower = float(next(lines))
+            zupper = float(next(lines))
+        mbc = int(next(lines))
         mthbc_xlower = int(next(lines))
         mthbc_xupper = int(next(lines))
-        if ndim>1:
+        if ndim > 1:
             mthbc_ylower = int(next(lines))
             mthbc_yupper = int(next(lines))
-        if ndim>2:
+        if ndim > 2:
             mthbc_zlower = int(next(lines))
             mthbc_zupper = int(next(lines))
 
@@ -99,34 +102,35 @@ def make_rundata(ndim):
 
     # end of make_rundata
 
-    
-#=================================================================
+
+# =================================================================
 def next(lines):
     """
     Return a string with the first number from the first nonzero line in
     lines and remove this line (and blanks) from list.
     """
-    line = '\n'
-    while (line.strip() == '') or (line.strip()[0] == '#'):
-        line = lines.pop(0)   # returns first line of lines, and removes it
+    line = "\n"
+    while (line.strip() == "") or (line.strip()[0] == "#"):
+        line = lines.pop(0)  # returns first line of lines, and removes it
     pattern = re.compile(r"^[ ]*(?P<string>[\S]+?)[, ]")
     result = pattern.search(line)
     try:
-        numstring = result.group('string')
-        numstring = numstring.replace('d','e')  # for floating notation
+        numstring = result.group("string")
+        numstring = numstring.replace("d", "e")  # for floating notation
     except:
-        print('*** Failed on line: ',line)
-        numstring = '0'
+        print("*** Failed on line: ", line)
+        numstring = "0"
     return numstring
 
 
-#========================================================================
+# ========================================================================
 
-def make_setrun(d,ndim):
+
+def make_setrun(d, ndim):
     """
     Create a file setrun.py using the run-time parameters in d.
     """
-    setrun = open('setrun.py', 'w')
+    setrun = open("setrun.py", "w")
     setrun.write('""" ')
     setrun.write("""
 Module to set up run time parameters for Clawpack.
@@ -156,7 +160,8 @@ def setrun(claw_pkg='classic'):
         rundata - object of class ClawRunData 
     """)
     setrun.write('\n    """ ')
-    setrun.write("""
+    setrun.write(
+        """
     
     assert claw_pkg.lower() == 'classic',  "Expected claw_pkg = 'classic'"
 
@@ -188,35 +193,53 @@ def setrun(claw_pkg='classic'):
     # Lower and upper edge of computational domain:
     clawdata.xlower = %s
     clawdata.xupper = %s
-    """ % (ndim, d.xlower, d.xupper))
+    """
+        % (ndim, d.xlower, d.xupper)
+    )
 
-    if ndim>1:
-        setrun.write("""
+    if ndim > 1:
+        setrun.write(
+            """
     clawdata.ylower = %s
     clawdata.yupper = %s
-        """ % (d.ylower, d.yupper))
-    if ndim>2:
-        setrun.write("""
+        """
+            % (d.ylower, d.yupper)
+        )
+    if ndim > 2:
+        setrun.write(
+            """
     clawdata.zlower = %s
     clawdata.zupper = %s
-        """ % (d.zlower, d.zupper))
+        """
+            % (d.zlower, d.zupper)
+        )
 
-    setrun.write("""
+    setrun.write(
+        """
 
     # Number of grid cells:
     clawdata.mx = %s
-    """ % d.mx)
+    """
+        % d.mx
+    )
 
-    if ndim>1:
-        setrun.write("""
+    if ndim > 1:
+        setrun.write(
+            """
     clawdata.my = %s
-        """ % d.my)
-    if ndim>2:
-        setrun.write("""
+        """
+            % d.my
+        )
+    if ndim > 2:
+        setrun.write(
+            """
     clawdata.mz = %s
-        """ % d.mz)
+        """
+            % d.mz
+        )
 
-    setrun.write("""
+    setrun.write(
+        """
 
     # ---------------
     # Size of system:
@@ -239,11 +262,12 @@ def setrun(claw_pkg='classic'):
 
     clawdata.t0 = %s
     
-    """ % (d.meqn, d.maux, d.mcapa, d.t0))
+    """
+        % (d.meqn, d.maux, d.mcapa, d.t0)
+    )
 
-
-
-    setrun.write("""
+    setrun.write(
+        """
     # -------------
     # Output times:
     #--------------
@@ -269,8 +293,11 @@ def setrun(claw_pkg='classic'):
         iout = 1
         ntot = 5
         clawdata.iout = [iout, ntot]
-    """ % (d.outstyle, d.nout, d.tfinal))
-    setrun.write("""
+    """
+        % (d.outstyle, d.nout, d.tfinal)
+    )
+    setrun.write(
+        """
 
 
     # ---------------------------------------------------
@@ -307,10 +334,20 @@ def setrun(claw_pkg='classic'):
     # Maximum number of time steps to allow between output times:
     clawdata.max_steps = %s
 
-    """ % (d.verbosity, d.dt_variable, d.dt_initial, d.dt_max, \
-           d.cfl_desired, d.cfl_max, d.max_steps))
+    """
+        % (
+            d.verbosity,
+            d.dt_variable,
+            d.dt_initial,
+            d.dt_max,
+            d.cfl_desired,
+            d.cfl_max,
+            d.max_steps,
+        )
+    )
 
-    setrun.write("""
+    setrun.write(
+        """
     
 
     # ------------------
@@ -336,9 +373,12 @@ def setrun(claw_pkg='classic'):
     #   src_split == 2  => Strang (2nd order) splitting used,  not recommended.
     clawdata.src_split = %s
     
-    """ % (d.order, d.order_trans, d.mwaves, d.mthlim, d.src_split))
-    
-    setrun.write("""
+    """
+        % (d.order, d.order_trans, d.mwaves, d.mthlim, d.src_split)
+    )
+
+    setrun.write(
+        """
     # --------------------
     # Boundary conditions:
     # --------------------
@@ -354,18 +394,26 @@ def setrun(claw_pkg='classic'):
     
     clawdata.mthbc_xlower = %s
     clawdata.mthbc_xupper = %s
-    """ % (d.mbc, d.mthbc_xlower, d.mthbc_xupper))
+    """
+        % (d.mbc, d.mthbc_xlower, d.mthbc_xupper)
+    )
 
-    if ndim>1:
-        setrun.write("""
+    if ndim > 1:
+        setrun.write(
+            """
     clawdata.mthbc_ylower = %s
     clawdata.mthbc_yupper = %s
-    """ % (d.mthbc_ylower, d.mthbc_yupper))
-    if ndim>2:
-        setrun.write("""
+    """
+            % (d.mthbc_ylower, d.mthbc_yupper)
+        )
+    if ndim > 2:
+        setrun.write(
+            """
     clawdata.mthbc_zlower = %s
     clawdata.mthbc_zupper = %s
-    """ % (d.mthbc_zlower, d.mthbc_zupper))
+    """
+            % (d.mthbc_zlower, d.mthbc_zupper)
+        )
 
     setrun.write("""
     return rundata
@@ -384,18 +432,19 @@ if __name__ == '__main__':
     rundata.write()
     """)
 
-
     setrun.close()
     print("=== Created setrun.py")
     # end of make_setrun
 
-#========================================================================
+
+# ========================================================================
+
 
 def make_setplot1(d):
     """
     Create a file setplot.py using the plotting parameters in d.
     """
-    setplot = open('setplot.py', 'w')
+    setplot = open("setplot.py", "w")
     setplot.write('\n""" ')
     setplot.write("""
 Set up the plot figures, axes, and items to be done for each frame.
@@ -426,7 +475,8 @@ def setplot(plotdata):
     # create a figure for each component of q:
 
     for iq in range(d.meqn):
-        setplot.write("""
+        setplot.write(
+            """
 
     # Figure for q[%s]
     plotfigure = plotdata.new_plotfigure(name='q[%s]', figno=%s)
@@ -443,8 +493,9 @@ def setplot(plotdata):
     plotitem.plotstyle = '-o'
     plotitem.color = 'b'
     plotitem.show = True       # show on plot?
-    """ % (iq,iq,iq,iq,iq))
-
+    """
+            % (iq, iq, iq, iq, iq)
+        )
 
     setplot.write("""
 
@@ -469,13 +520,15 @@ def setplot(plotdata):
     print("=== Created setplot.py")
     # end of make_setplot1
 
-#========================================================================
+
+# ========================================================================
+
 
 def make_setplot2(d):
     """
     Create a file setplot.py using the plotting parameters in d.
     """
-    setplot = open('setplot.py', 'w')
+    setplot = open("setplot.py", "w")
     setplot.write('\n""" ')
     setplot.write("""
 Set up the plot figures, axes, and items to be done for each frame.
@@ -508,7 +561,8 @@ def setplot(plotdata):
     # create a figure for each component of q:
 
     for iq in range(d.meqn):
-        setplot.write("""
+        setplot.write(
+            """
 
     # Figure for q[%s]
     plotfigure = plotdata.new_plotfigure(name='q[%s]', figno=%s)
@@ -526,8 +580,9 @@ def setplot(plotdata):
     plotitem.pcolor_cmap = colormaps.yellow_red_blue
     plotitem.add_colorbar = True
     plotitem.show = True       # show on plot?
-    """ % (iq,iq,iq,iq,iq))
-
+    """
+            % (iq, iq, iq, iq, iq)
+        )
 
     setplot.write("""
 
@@ -553,20 +608,21 @@ def setplot(plotdata):
 
     # end of make_setplot2
 
+
 # =================================================================
 def make_Makefile1():
-    if not os.path.isfile('Makefile.claw43'):
+    if not os.path.isfile("Makefile.claw43"):
         try:
-            shutil.move('Makefile','Makefile.claw43')
+            shutil.move("Makefile", "Makefile.claw43")
             print("=== Moved Makefile to Makefile.claw43")
         except:
             print("*** Could not find Makefile")
             raise
             return
-    oldmake = open('Makefile.claw43','r')
+    oldmake = open("Makefile.claw43", "r")
     mkfile = oldmake.read()
 
-    newmake = open('Makefile','w')
+    newmake = open("Makefile", "w")
     newmake.write("""
 # Makefile for Clawpack code in this directory.
 # This version only sets the local files and frequently changed
@@ -603,12 +659,12 @@ FFLAGS =
     pattern = re.compile(r"OBJECTS =(?P<objs>.*?)LIBOBJECTS", re.DOTALL)
     result = pattern.search(mkfile)
     if result:
-        objs = result.group('objs')  # local object files
+        objs = result.group("objs")  # local object files
     else:
         print("*** No local files?")
 
     newmake.write("\nCLAW_SOURCES =")
-    objs = objs.replace('.o','.f',100)
+    objs = objs.replace(".o", ".f", 100)
     newmake.write(objs)
 
     newmake.write("""
@@ -619,13 +675,13 @@ CLAW_LIB = $(CLAW)/clawpack/1d/lib
     pattern = re.compile(r"LIBOBJECTS =(?P<libobjs>.*?)[\s]*SOURCES", re.DOTALL)
     result = pattern.search(mkfile)
     if result:
-        libobjs = result.group('libobjs')  # library object files
+        libobjs = result.group("libobjs")  # library object files
     else:
         print("*** No library files?")
 
-    libobjs = libobjs.replace('.o','.f',100)
-    libobjs = libobjs.replace(r'$(CLAW)/clawpack/1d/lib','$(CLAW_LIB)',100)
-    if 'out1' not in libobjs:
+    libobjs = libobjs.replace(".o", ".f", 100)
+    libobjs = libobjs.replace(r"$(CLAW)/clawpack/1d/lib", "$(CLAW_LIB)", 100)
+    if "out1" not in libobjs:
         # Sometimes Makefile has a switch between out1 and out1_hdf
         # Here just add out1.f:
         libobjs = libobjs + "\\\n  $(CLAW_LIB)/out1.f"
@@ -649,21 +705,20 @@ include $(CLAWMAKE)
     ## end of make_Makefile1
 
 
-
 # =================================================================
 def make_Makefile2():
-    if not os.path.isfile('Makefile.claw43'):
+    if not os.path.isfile("Makefile.claw43"):
         try:
-            shutil.move('Makefile','Makefile.claw43')
+            shutil.move("Makefile", "Makefile.claw43")
             print("=== Moved Makefile to Makefile.claw43")
         except:
             print("*** Could not find Makefile")
             raise
             return
-    oldmake = open('Makefile.claw43','r')
+    oldmake = open("Makefile.claw43", "r")
     mkfile = oldmake.read()
 
-    newmake = open('Makefile','w')
+    newmake = open("Makefile", "w")
     newmake.write("""
 # Makefile for Clawpack code in this directory.
 # This version only sets the local files and frequently changed
@@ -700,12 +755,12 @@ FFLAGS =
     pattern = re.compile(r"OBJECTS =(?P<objs>.*?)LIBOBJECTS", re.DOTALL)
     result = pattern.search(mkfile)
     if result:
-        objs = result.group('objs')  # local object files
+        objs = result.group("objs")  # local object files
     else:
         print("*** No local files?")
 
     newmake.write("\nCLAW_SOURCES =")
-    objs = objs.replace('.o','.f',100)
+    objs = objs.replace(".o", ".f", 100)
     newmake.write(objs)
 
     newmake.write("""
@@ -716,17 +771,17 @@ CLAW_LIB = $(CLAW)/clawpack/2d/lib
     pattern = re.compile(r"LIBOBJECTS =(?P<libobjs>.*?)[\s]*SOURCES", re.DOTALL)
     result = pattern.search(mkfile)
     if result:
-        libobjs = result.group('libobjs')  # library object files
+        libobjs = result.group("libobjs")  # library object files
     else:
         print("*** No library files?")
 
-    libobjs = libobjs.replace('.o','.f',100)
-    libobjs = libobjs.replace(r'$(CLAW)/clawpack/2d/lib','$(CLAW_LIB)',100)
-    if 'out2' not in libobjs:
+    libobjs = libobjs.replace(".o", ".f", 100)
+    libobjs = libobjs.replace(r"$(CLAW)/clawpack/2d/lib", "$(CLAW_LIB)", 100)
+    if "out2" not in libobjs:
         # Sometimes Makefile has a switch between out2 and out2_hdf
         # Here just add out2.f:
         libobjs = libobjs + "\\\n  $(CLAW_LIB)/out2.f"
-    if 'restart2' not in libobjs:
+    if "restart2" not in libobjs:
         # Sometimes Makefile has a switch between restart2 and restart2_hdf
         # Here just add restart2.f:
         libobjs = libobjs + "\\\n  $(CLAW_LIB)/restart2.f"
@@ -750,15 +805,12 @@ include $(CLAWMAKE)
     ## end of make_Makefile1
 
 
-
-
 # =================================================================
+
 
 def make_README(ndim):
 
-
-
-    readme = open('README.txt','w')
+    readme = open("README.txt", "w")
     readme.write("""
 
 begin_html [use: jsMath] [use: doc/doc.css]
@@ -774,20 +826,23 @@ CLAWPACK Sample Code
 Add a description here!
     """)
 
-    regexp = re.compile(r'.*book/chap(?P<ex>.*)')
+    regexp = re.compile(r".*book/chap(?P<ex>.*)")
     result = regexp.search(os.getcwd())
     if result:
-        readme.write("""
+        readme.write(
+            """
 Example [book/chap%s]
 to accompany the book <br> &nbsp;&nbsp;
   [www.clawpack.org/book.html Finite Volume Methods for Hyperbolic Problems]
   by R. J. LeVeque.
 
 Converted to [www.clawpack.org Clawpack 4.4] form in 2009.
-        """ % result.group('ex'))
+        """
+            % result.group("ex")
+        )
 
-
-    readme.write("""
+    readme.write(
+        """
 <h4>
 Plots of results
 </h4>
@@ -816,9 +871,11 @@ A routine by this name is called by the library routine
 [clawcode: clawpack/%sd/lib/claw%sez.f]
 and is generally used to set any values needed for the specific problem
 being solved.
-    """ % (ndim,ndim))
+    """
+        % (ndim, ndim)
+    )
 
-    if ndim==1:
+    if ndim == 1:
         readme.write("""
     
 <dt>[code: rp1.f]
@@ -830,7 +887,7 @@ Riemann problem at each cell interface, and the fluctuations <tt>amdq</tt>
 and <tt>apdq</tt>.  See [claw:doc/rp1.html] for more information about 1d
 Riemann solvers.
          """)
-    if ndim==2:
+    if ndim == 2:
         readme.write("""
     
 <dt>[code: rpn2.f]
@@ -841,7 +898,8 @@ Riemann solvers.
 
          """)
 
-    readme.write("""
+    readme.write(
+        """
 <dt>[code: qinit.f]
 <dd>
 This subroutine sets the initial data at time $t=0$.
@@ -898,7 +956,9 @@ to determine which ones are used.
 
 end_html
 
-    """ % (ndim,ndim,ndim))
+    """
+        % (ndim, ndim, ndim)
+    )
     readme.close()
     print("=== Created README.txt")
 
@@ -912,24 +972,23 @@ def fix_setprob(ndim):
     """
     import re
 
-    if (os.path.isfile('setprob.f') and \
-          (not os.path.isfile('setprob.f.claw43'))):
-        shutil.move('setprob.f','setprob.f.claw43')
+    if os.path.isfile("setprob.f") and (not os.path.isfile("setprob.f.claw43")):
+        shutil.move("setprob.f", "setprob.f.claw43")
         print("=== Moved setprob.f to setprob.f.claw43")
-        lines = open('setprob.f.claw43','r').readlines()
-        setprob = open('setprob.f','w')
+        lines = open("setprob.f.claw43", "r").readlines()
+        setprob = open("setprob.f", "w")
         for line in lines:
-            if line.find('implicit') > -1:
+            if line.find("implicit") > -1:
                 setprob.write(line)
                 setprob.write("      character*12 fname\n")
-            elif line.find('open(') > -1:
+            elif line.find("open(") > -1:
                 regexp = re.compile(r"open.*unit\s*?=\s*?(?P<iunit>[0-9]+)\s*,")
                 result = regexp.search(line)
                 if result:
-                    iunit = result.group('iunit')
+                    iunit = result.group("iunit")
                 else:
-                    print('*** Oops, expected to find unit number in setprob.f')
-                    print('*** setprob.f is corrupted, revert from setprob.f.claw43')
+                    print("*** Oops, expected to find unit number in setprob.f")
+                    print("*** setprob.f is corrupted, revert from setprob.f.claw43")
                     setprob.close()
                     raise
                     return
@@ -944,15 +1003,14 @@ c     # comment lines starting with #:
             else:
                 setprob.write(line)
         setprob.close()
-  
+
         print("=== Modified setprob.f")
 
     ## end of fix_setprob
-   
 
 
 # =================================================================
-    
+
 if __name__ == "__main__":
     try:
         convert()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python 
+#!/usr/bin/env python
 
 # convert CLAWPACK source code, data files, READMEs, etc. into html.
 # for example,
@@ -9,20 +9,20 @@
 # overwriting unless the -f or --force flag is used, e.g.
 #   clawcode2html --force filename.f
 #
-# Based on mathcode2html.py from 
+# Based on mathcode2html.py from
 #    http://www.amath.washington.edu/~rjl/mathcode2html
 # with some modifications for CLAWPACK.
 #
 # The environment variable CLAW must be properly set to the root
 # of the claw directory before using this script.
-# 
+#
 # Most of code is put into <pre> environment.
-# Any comments enclosed by begin_html and end_html are taken out 
-# of the <pre> environment and indented properly (using a table) 
+# Any comments enclosed by begin_html and end_html are taken out
+# of the <pre> environment and indented properly (using a table)
 # to match the surrounding code.
 
-# By default, the html comments are offset in blue font, except if the 
-# input file has extension .txt or no extension, in which case it's 
+# By default, the html comments are offset in blue font, except if the
+# input file has extension .txt or no extension, in which case it's
 # left as black.  The default_color can be changed below.
 # Also, the begin_html line may contain [color: red] for example,
 # to determine the color of this comment.
@@ -35,43 +35,72 @@
 # page, invoke mathcode2html with the --nojsmath option.
 
 
-#---------------------------------------------------------------------------
-# Copyright (C) 2008   Randall J. LeVeque 
+# ---------------------------------------------------------------------------
+# Copyright (C) 2008   Randall J. LeVeque
 #
 # Distributed as part of Clawpack, under the BSD license
 # See www.clawpack.org
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 
-import sys,os,glob
+import glob
+import os
 import re
+import sys
 import time
+
 try:
     from optparse import OptionParser
 except:
-    print('You must use a more recent version of Python')
+    print("You must use a more recent version of Python")
     sys.exit(1)
 
 # parse command line arguments:
 parser = OptionParser()
-parser.add_option("-f", "--force",
-                  action="store_true", dest="forced", default=False,
-                  help="force action even if it overwrites html file")
-parser.add_option("--nojsmath",
-                  action="store_false", dest="nojsMath", default=False,
-                  help="don't include call to jsMath script in html")
-parser.add_option("-q", "--quiet",
-                  action="store_false", dest="verbose", default=True,
-                  help="don't print status messages to stdout")
-parser.add_option("--noheader",
-                  action="store_false", dest="header", default=True,
-                  help="suppress printing header at top of html page")
-parser.add_option("--dropext",
-                  action="store_true", dest="dropext", default=False,
-                  help="drop the file extension before adding .html for output")
-parser.add_option("--eagle",
-                  action="store_true", dest="eagle", default=False,
-                  help="load the eagleclaw.css style")
+parser.add_option(
+    "-f",
+    "--force",
+    action="store_true",
+    dest="forced",
+    default=False,
+    help="force action even if it overwrites html file",
+)
+parser.add_option(
+    "--nojsmath",
+    action="store_false",
+    dest="nojsMath",
+    default=False,
+    help="don't include call to jsMath script in html",
+)
+parser.add_option(
+    "-q",
+    "--quiet",
+    action="store_false",
+    dest="verbose",
+    default=True,
+    help="don't print status messages to stdout",
+)
+parser.add_option(
+    "--noheader",
+    action="store_false",
+    dest="header",
+    default=True,
+    help="suppress printing header at top of html page",
+)
+parser.add_option(
+    "--dropext",
+    action="store_true",
+    dest="dropext",
+    default=False,
+    help="drop the file extension before adding .html for output",
+)
+parser.add_option(
+    "--eagle",
+    action="store_true",
+    dest="eagle",
+    default=False,
+    help="load the eagleclaw.css style",
+)
 
 (options, infiles) = parser.parse_args()
 
@@ -79,15 +108,14 @@ forced = options.forced
 nojsMath = options.nojsMath
 verbose = options.verbose
 header = options.header
-dropext = options.dropext 
-eagle = options.eagle 
-
+dropext = options.dropext
+eagle = options.eagle
 
 
 # CLAWPACK environment variables:
 
 try:
-    clawdir = os.getenv('CLAW')  # assumes environment variable set properly
+    clawdir = os.getenv("CLAW")  # assumes environment variable set properly
 except:
     print("CLAW environment variable not set")
     print("You need to run setenv.py before setup.py")
@@ -103,57 +131,57 @@ if clawdir == None:
 # change the lines below if you want to point to a webpage home instead
 # of the local file system  (e.g.  clawaddr = "http://www.mywebpage/claw")
 
-#clawaddr = 'http://localhost:50005'
+# clawaddr = 'http://localhost:50005'
 
-clawaddr = 'http://www.clawpack.org/'
+clawaddr = "http://www.clawpack.org/"
 
 
 # Set comment characters for different programming languages:
 # Augment or modify as desired.
-commentchar = { '.f'  : ['!', '#'], \
-                '.f95'  : ['!','#'], \
-                '.f90'  : ['!','#'], \
-                '.m'  : '%', \
-                '.py' : '#', \
-                '.sh' : '#', \
-                '.data' : ['#','=:'], \
-                '.txt': None, \
-                'Makefile': '#', \
-                ''    : None}
+commentchar = {
+    ".f": ["!", "#"],
+    ".f95": ["!", "#"],
+    ".f90": ["!", "#"],
+    ".m": "%",
+    ".py": "#",
+    ".sh": "#",
+    ".data": ["#", "=:"],
+    ".txt": None,
+    "Makefile": "#",
+    "": None,
+}
 
-firstfort = ['c','*','C','!']   # valid fortran .f comment char's in col. 1
-firstfort95 = ['!']   # valid fortran .f95 comment char's in col. 1
+firstfort = ["c", "*", "C", "!"]  # valid fortran .f comment char's in col. 1
+firstfort95 = ["!"]  # valid fortran .f95 comment char's in col. 1
 
-leadingindent = ''    # additional indentation for webpage, if desired
+leadingindent = ""  # additional indentation for webpage, if desired
 
-default_color = 'blue'
+default_color = "blue"
 
 
 try:
-    infiles.remove('clawcode2html.py')  # can't apply this code to itself!
+    infiles.remove("clawcode2html.py")  # can't apply this code to itself!
 except:
     pass
 
 
 for infilename in infiles:
-
     # check if this is a code file of a recognized language.
     ext = os.path.splitext(infilename)[1]
-    if infilename == 'Makefile':
-        ext = 'Makefile'  # special case
-    
+    if infilename == "Makefile":
+        ext = "Makefile"  # special case
+
     if ext not in commentchar:
         print("  ")
         print("  Warning: Unrecognized extension, will proceed")
         print("           with no replacement of comment characters")
-        commentchar[ext] = None 
-    
-    
+        commentchar[ext] = None
+
     # open input and output files:
-    #-----------------------------
-    
+    # -----------------------------
+
     try:
-        ifile = open(infilename,'r')
+        ifile = open(infilename, "r")
     except:
         print("File not found:", infilename)
         sys.exit(1)
@@ -170,140 +198,150 @@ for infilename in infiles:
     regexp = re.compile(r"\[use:(?P<cssfile>[^\]]*).css\]")
     result = regexp.search(all_lines)
     if result is not None:
-        cssfile = result.group('cssfile').strip() + '.css'
+        cssfile = result.group("cssfile").strip() + ".css"
     else:
         cssfile = None
 
-    
     ifile.seek(0)  # return to start of file
     lines = ifile.readlines()
-    
+
     if dropext:
         infileroot = os.path.splitext(infilename)[0]
-        outfilename = infileroot + '.html'
+        outfilename = infileroot + ".html"
     else:
-        outfilename = infilename + '.html'
+        outfilename = infilename + ".html"
 
     if (glob.glob(outfilename) != []) & (not forced):
-        sys.stdout.write('  OK to overwrite %s?  '  %  outfilename)
+        sys.stdout.write("  OK to overwrite %s?  " % outfilename)
         answer = input()
-        if answer not in ['y','Y','yes']:
-            print('  Aborting!')
+        if answer not in ["y", "Y", "yes"]:
+            print("  Aborting!")
             sys.exit(1)
-    
-    ofile = open(outfilename,'w')
-    
-    
-    # start creating html file:
-    #--------------------------
-    
-    if verbose:
-        print('  Converting ', infilename, ' to ', outfilename)
 
-    
-    ofile.write("""<!-- **** DO NOT EDIT THIS FILE *** 
+    ofile = open(outfilename, "w")
+
+    # start creating html file:
+    # --------------------------
+
+    if verbose:
+        print("  Converting ", infilename, " to ", outfilename)
+
+    ofile.write(
+        """<!-- **** DO NOT EDIT THIS FILE *** 
          This file was generated automatically from file
               %s
-         using $CLAW/clawutil/src/python/clawutil/clawcode2html.py         -->""" % infilename)
+         using $CLAW/clawutil/src/python/clawutil/clawcode2html.py         -->"""
+        % infilename
+    )
 
-    ofile.write('\n\n<html>\n<title> %s </title>\n\n'  % outfilename)
+    ofile.write("\n\n<html>\n<title> %s </title>\n\n" % outfilename)
     if eagle:
-        ofile.write("""
+        ofile.write(
+            """
           <head>
           <link type="text/css" rel="stylesheet"
           href="%s/eagleclaw/eagleclaw.css">
           <link rel="icon" href="%s/_static/clawicon_new.ico" />
           </head> 
           <body>
-        """ % (clawaddr,clawaddr))
+        """
+            % (clawaddr, clawaddr)
+        )
     elif cssfile:
-        ofile.write("""
+        ofile.write(
+            """
           <head>
           <link type="text/css" rel="stylesheet"
           href="%s/%s">
           <link rel="icon" href="%s/_static/clawicon_new.ico" />
           </head> 
           <body>
-        """ % (clawaddr, cssfile, clawaddr))
+        """
+            % (clawaddr, cssfile, clawaddr)
+        )
     else:
         ofile.write(
-           """
+            """
           <head>
            <link rel="icon" href="%s/_static/clawicon_new.ico" />
           </head> 
            <BODY TEXT="#000000" BGCOLOR="#FFFFFF" LINK="#0000FF" 
                  VLINK="#5500DD" ALINK="#FF0000">
            <font FACE="HELVETICA,ARIAL">
-           """ % clawaddr)
+           """
+            % clawaddr
+        )
 
-    
     # determine time and reformat:
     time1 = time.asctime()
     year = time1[-5:]
     day = time1[:-14]
     hour = time1[-13:-5]
-    creationtime = day + year + ' at ' + hour
+    creationtime = day + year + " at " + hour
 
     # put full file name with path into a comment for future reference:
-    fullinfilename = os.path.join(os.getcwd(),infilename)
-    ofile.write('\n<!-- Created from the file %s -->\n'  % fullinfilename)
-    ofile.write('<!-- Date: %s -->\n\n'  % creationtime)
-    
-    
+    fullinfilename = os.path.join(os.getcwd(), infilename)
+    ofile.write("\n<!-- Created from the file %s -->\n" % fullinfilename)
+    ofile.write("<!-- Date: %s -->\n\n" % creationtime)
+
     if header:
-        #ofile.write('<table bgcolor="#DDEEEE"> <tr> <td>\n')
+        # ofile.write('<table bgcolor="#DDEEEE"> <tr> <td>\n')
         ofile.write('<table bgcolor="#FFEE99"> <tr> <td>\n')
-        ofile.write('&nbsp;<font size=6> %s </font> </td>\n' % outfilename)
-    
-        ofile.write("""
+        ofile.write("&nbsp;<font size=6> %s </font> </td>\n" % outfilename)
+
+        ofile.write(
+            """
             <td><a href="http://www.clawpack.org/index.html"><img
             src="%s/_static/clawlogo_border.jpg"
-            width=150 alt="CLAWPACK"></a>""" % clawaddr)
+            width=150 alt="CLAWPACK"></a>"""
+            % clawaddr
+        )
 
-        ofile.write('&nbsp;&nbsp; </td> </tr> <tr> <td>\n')
-    
-        ofile.write('&nbsp;Source file: &nbsp;&nbsp;<a href="%s">%s </a>\n' \
-                     % (infilename,infilename))
-        ofile.write('</td></tr><tr><td>\n')
-        ofile.write('&nbsp;Directory:  &nbsp; %s \n' %  os.getcwd())
-        ofile.write('</td></tr><tr><td>\n')
-        ofile.write('&nbsp;Converted:  &nbsp; %s \n' % creationtime)
-        ofile.write('&nbsp; using <a href="%s/doc/application_documentation.html#clawcode2html">clawcode2html</a>\n'\
-                    % clawaddr)
-        ofile.write('</td></tr><tr><td>\n')
+        ofile.write("&nbsp;&nbsp; </td> </tr> <tr> <td>\n")
+
+        ofile.write(
+            '&nbsp;Source file: &nbsp;&nbsp;<a href="%s">%s </a>\n'
+            % (infilename, infilename)
+        )
+        ofile.write("</td></tr><tr><td>\n")
+        ofile.write("&nbsp;Directory:  &nbsp; %s \n" % os.getcwd())
+        ofile.write("</td></tr><tr><td>\n")
+        ofile.write("&nbsp;Converted:  &nbsp; %s \n" % creationtime)
+        ofile.write(
+            '&nbsp; using <a href="%s/doc/application_documentation.html#clawcode2html">clawcode2html</a>\n'
+            % clawaddr
+        )
+        ofile.write("</td></tr><tr><td>\n")
         ofile.write('<font color="#BB3300"> &nbsp;This documentation file will \n')
-        ofile.write('not reflect any later changes in the source file. </font>\n')
-        ofile.write('</td></tr></table></font>\n')
-        ofile.write('<p>\n')
-    
-    
+        ofile.write("not reflect any later changes in the source file. </font>\n")
+        ofile.write("</td></tr></table></font>\n")
+        ofile.write("<p>\n")
+
     if usejsMath:
-        
         # Set jsMathScript to the file or URL of the java script load.js.
 
         # proper location for using webserver started by executing
         # "python startserver.py" in the $CLAW directory:
-        jsMathScript = "%s/doc/load.js"  % clawaddr
+        jsMathScript = "%s/doc/load.js" % clawaddr
 
         # script location for posting on kingkong server:
         # jsMathScript = "http://kingkong.amath.washington.edu/claw/doc/load.js"
-    
+
         # script location for posting on rjl's webpage:
         # jsMathScript = "http://www.amath.washington.edu/~rjl/jsMath/easy/load.js"
-    
-        ofile.write("    <!-- jsMath stuff:  -->\n")
-        ofile.write(" <SCRIPT SRC= %s> </SCRIPT>\n"  % jsMathScript)
 
-    
+        ofile.write("    <!-- jsMath stuff:  -->\n")
+        ofile.write(" <SCRIPT SRC= %s> </SCRIPT>\n" % jsMathScript)
+
         ofile.write("""
             <!-- Warning message if script doesn't work:  -->
             $\phantom{******** If you see this on the webpage then the 
                                browser could not locate *********}$<br>
             $\phantom{******** the jsMath file load.js *********}$<p>
             \n""")
-        
-        # define any latex macros that you want to use in jsMath: 
-        
+
+        # define any latex macros that you want to use in jsMath:
+
         ofile.write("""
           <!- latex macros: -->
           $\\newcommand{\\vector}[1]{\\left[\\begin{array}{c} #1 \\end{array}\\right]}$ 
@@ -313,103 +351,99 @@ for infilename in infiles:
           \n""")
         #
         # end of jsMath stuff
-    
 
     # start writing input file to output file...
-    
+
     # code is in pre-formatted environment:
-    ofile.write('<pre> \n')
-    
-    insidehtml = 0;   # set to 1 when we're processing html comments
-    lineno = 0;       # line number counter for error message
-    
+    ofile.write("<pre> \n")
+
+    insidehtml = 0  # set to 1 when we're processing html comments
+    lineno = 0  # line number counter for error message
+
     for line in lines:
-    
         lineno += 1
-    
-        if 'begin_html' in line:
+
+        if "begin_html" in line:
             regexp = re.compile(r"\[color:(?P<color>[^\]]*)\]")
             result = regexp.search(line)
             if result:
-                font_color = result.group('color')
+                font_color = result.group("color")
             else:
                 font_color = default_color
-    
+
             if insidehtml:
-                print('  Error at line ', lineno, '\n')
-                print('  Unexpected begin_html  when already in html mode\n')
-                print('  Missing end_html? \n')
+                print("  Error at line ", lineno, "\n")
+                print("  Unexpected begin_html  when already in html mode\n")
+                print("  Missing end_html? \n")
                 sys.exit(1)
-    
+
             # switch out of pre-formatted mode and create table to indent
-            ofile.write('</pre>\n<table><tr><td>\n')
-    
-            # The first column of the table is spaces for indentation 
+            ofile.write("</pre>\n<table><tr><td>\n")
+
+            # The first column of the table is spaces for indentation
             # to match surrounding source code.
             # Count how many spaces there are before the begin_html
             #  or to the first comment character preceeding that string:
             regexp = re.compile(r"(?P<spaces>[ ]*)(#|%|begin)")
             result = regexp.search(line)
             if result:
-                numindent = len(leadingindent) + len(result.group('spaces'))
+                numindent = len(leadingindent) + len(result.group("spaces"))
                 numindent = numindent
-                ofile.write('<pre><tt>')
+                ofile.write("<pre><tt>")
                 for i in range(numindent):
-                    ofile.write(' ')
-                ofile.write('</tt></pre>')
+                    ofile.write(" ")
+                ofile.write("</tt></pre>")
             else:
-                print('  Strange error in clawcode2html - should not be here')
-                print('     at line number ', lineno)
-              
-    
-            ofile.write('\n</td>\n')
-    
+                print("  Strange error in clawcode2html - should not be here")
+                print("     at line number ", lineno)
+
+            ofile.write("\n</td>\n")
+
             # the next column of the table has the comment itself:
-            ofile.write('<td width=900>\n')
-            if ext not in ('.txt', ''):
+            ofile.write("<td width=900>\n")
+            if ext not in (".txt", ""):
                 # use colored font for comments except for text files.
-                ofile.write('<font size="-1" color=%s>\n'  % font_color)
-            insidehtml = 1;
-    
-        elif 'end_html' in line:
+                ofile.write('<font size="-1" color=%s>\n' % font_color)
+            insidehtml = 1
+        elif "end_html" in line:
             # switch back to pre-formatted environment
-            ofile.write('</font></td></tr></table>\n')
-            ofile.write('<pre> \n')
-            insidehtml = 0;
-    
+            ofile.write("</font></td></tr></table>\n")
+            ofile.write("<pre> \n")
+            insidehtml = 0
         else:
             if insidehtml:
-    
                 # replace blank line in html comment by new paragraph <p>:
-                blankline = (line.strip == '')
+                blankline = line.strip == ""
                 if not blankline:
-                   firstchar = line.split()[0][0]
-                   if ((ext in ['.f','.f95']) & (firstchar not in firstfort)): 
-                       if firstchar not in commentchar[ext]:
-                           print('  Error... in line ', lineno,'\n' \
-                                 '  In html but not in a comment.'\
-                                 '   Forgotten "end_html" ?')
-                           sys.exit(1)
-    
+                    firstchar = line.split()[0][0]
+                    if (ext in [".f", ".f95"]) & (firstchar not in firstfort):
+                        if firstchar not in commentchar[ext]:
+                            print(
+                                "  Error... in line ",
+                                lineno,
+                                "\n"
+                                "  In html but not in a comment."
+                                '   Forgotten "end_html" ?',
+                            )
+                            sys.exit(1)
+
                 # fortran comments may have comment symbol in column 1
                 # strip lines inside an html comment of leading symbol:
-                if ext == '.f':
+                if ext == ".f":
                     if line[0] in firstfort:
-                       line = ' ' + line[1:]
-                if ext == '.f95':
+                        line = " " + line[1:]
+                if ext == ".f95":
                     if line[0] in firstfort95:
-                       line = ' ' + line[1:]
-    
-                # replace any comment character by ' ' 
+                        line = " " + line[1:]
+
+                # replace any comment character by ' '
                 if commentchar[ext]:
                     for char in commentchar[ext]:
-                        line = line.replace(char,' ')  
-    
-    
-                blankline = (line.strip == '')
-                if blankline:
-                   line = ('<p>\n')
+                        line = line.replace(char, " ")
 
+                blankline = line.strip == ""
+                if blankline:
+                    line = "<p>\n"
 
                 # Allow wiki formatting of links:
                 # -------------------------------
@@ -419,169 +453,190 @@ for infilename in infiles:
                 regexp = re.compile(r"\[name:[ ]*(?P<placemark>[^ ^\]]*)\]")
                 result = regexp.search(line)
                 while result:
-                    placemark = result.group('placemark')
+                    placemark = result.group("placemark")
                     oldpat = result.group()
                     newpat = '<a name="%s">' % placemark
-                    line = line.replace(oldpat,newpat)
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
 
                 # Replace links of the form [code: target]
                 # by html links to both target and target.html.
-                # Also allows [code: target#placemark] with links to target 
+                # Also allows [code: target#placemark] with links to target
                 # and target.html#placemark.
 
-                regexp = re.compile(r"\[code:[ ]*(?P<target>[^ ^\]^#]*)([#]?)" + \
-                                    r"(?P<placemark>[^\]]*)\]")
+                regexp = re.compile(
+                    r"\[code:[ ]*(?P<target>[^ ^\]^#]*)([#]?)"
+                    + r"(?P<placemark>[^\]]*)\]"
+                )
                 result = regexp.search(line)
                 while result:
-                    targetname = result.group('target')
-                    placemark = result.group('placemark')
+                    targetname = result.group("target")
+                    placemark = result.group("placemark")
                     oldpat = result.group()
                     if placemark:
-                        newpat = '<a href="%s">%s</a>' \
-                                     % (targetname,targetname) + \
-                                 '&nbsp;<a href="%s.html#%s">[.html]</a>' \
-                                     % (targetname,placemark) 
+                        newpat = '<a href="%s">%s</a>' % (
+                            targetname,
+                            targetname,
+                        ) + '&nbsp;<a href="%s.html#%s">[.html]</a>' % (
+                            targetname,
+                            placemark,
+                        )
                     else:
                         oldpat = result.group()
-                        newpat = '<a href="%s">%s</a>' \
-                                     % (targetname,targetname) + \
-                                 '&nbsp;<a href="%s.html">[.html]</a>' \
-                                     % targetname 
-                    line = line.replace(oldpat,newpat)
+                        newpat = (
+                            '<a href="%s">%s</a>' % (targetname, targetname)
+                            + '&nbsp;<a href="%s.html">[.html]</a>' % targetname
+                        )
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
-
 
                 # replace links of the form [link: target text]
                 # by an html link from text to the target page.
-                regexp = re.compile(r"\[link:[ ]?(?P<target>[^ ^\]]*)" + \
-                                    r"([ ]*)(?P<text>[^\]]*)\]")
+                regexp = re.compile(
+                    r"\[link:[ ]?(?P<target>[^ ^\]]*)" + r"([ ]*)(?P<text>[^\]]*)\]"
+                )
                 result = regexp.search(line)
                 while result:
-                    targetname = result.group('target')
-                    text = result.group('text')
+                    targetname = result.group("target")
+                    text = result.group("text")
                     oldpat = result.group()
-                    if text=='': 
+                    if text == "":
                         text = targetname
-                    newpat = '<a href="' + targetname + '">' + \
-                                text + '</a>  '
-                    line = line.replace(oldpat,newpat)
+                    newpat = '<a href="' + targetname + '">' + text + "</a>  "
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
-
 
                 # replace links of the form [http:etc text]
                 # by an html link from text to the http page.
-                regexp = re.compile(r"\[http:(?P<target>[^ ^\]]*)" + \
-                                    r"([ ]*)(?P<text>[^\]]*)\]")
+                regexp = re.compile(
+                    r"\[http:(?P<target>[^ ^\]]*)" + r"([ ]*)(?P<text>[^\]]*)\]"
+                )
                 result = regexp.search(line)
                 while result:
-                    targetname = result.group('target')
-                    text = result.group('text')
+                    targetname = result.group("target")
+                    text = result.group("text")
                     oldpat = result.group()
-                    if text=='': 
+                    if text == "":
                         text = targetname[2:]
-                    newpat = '<a href="http:' + targetname + '">' + \
-                                text + '</a>  '
-                    line = line.replace(oldpat,newpat)
+                    newpat = '<a href="http:' + targetname + '">' + text + "</a>  "
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
-
 
                 # replace links of the form [www.etc text]
                 # by an html link from text to the http://www.etc page.
-                regexp = re.compile(r"\[www.(?P<target>[^ ^\]]*)" + \
-                                    r"([ ]*)(?P<text>[^\]]*)\]")
+                regexp = re.compile(
+                    r"\[www.(?P<target>[^ ^\]]*)" + r"([ ]*)(?P<text>[^\]]*)\]"
+                )
                 result = regexp.search(line)
                 while result:
-                    targetname = result.group('target')
-                    text = result.group('text')
+                    targetname = result.group("target")
+                    text = result.group("text")
                     oldpat = result.group()
-                    if text=='': 
-                        text = 'www.' + targetname
-                    newpat = '<a href="http://www.' + targetname + '">' + \
-                                text + '</a>  '
-                    line = line.replace(oldpat,newpat)
+                    if text == "":
+                        text = "www." + targetname
+                    newpat = (
+                        '<a href="http://www.' + targetname + '">' + text + "</a>  "
+                    )
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
-
 
                 # special things for CLAWPACK:
 
                 # replace links of the form [clawcode:clawpack/1d/lib/step1.f]
-                # for example by links relative to clawaddr, 
+                # for example by links relative to clawaddr,
                 # along with a link to the .html version.
-                regexp = re.compile(r"\[clawcode:[ ]*(?P<target>[^ ^\]^#]*)([#]?)" + \
-                                    r"(?P<placemark>[^\]]*)\]")
+                regexp = re.compile(
+                    r"\[clawcode:[ ]*(?P<target>[^ ^\]^#]*)([#]?)"
+                    + r"(?P<placemark>[^\]]*)\]"
+                )
                 result = regexp.search(line)
                 while result:
-                    targetname = result.group('target').lstrip()
-                    placemark = result.group('placemark')
+                    targetname = result.group("target").lstrip()
+                    placemark = result.group("placemark")
                     oldpat = result.group()
                     if placemark:
-                        newpat = '<a href="%s/%s">claw/%s</a>' \
-                                     % (clawaddr,targetname,targetname) + \
-                                 '&nbsp;<a href="%s/%s.html#%s">[.html]</a>' \
-                                     % (clawaddr,targetname,placemark) 
+                        newpat = '<a href="%s/%s">claw/%s</a>' % (
+                            clawaddr,
+                            targetname,
+                            targetname,
+                        ) + '&nbsp;<a href="%s/%s.html#%s">[.html]</a>' % (
+                            clawaddr,
+                            targetname,
+                            placemark,
+                        )
                     else:
-                        newpat = '<a href="%s/%s">%s</a>' \
-                                     % (clawaddr,targetname,targetname) + \
-                                 '&nbsp;<a href="%s/%s.html">[.html]</a>' \
-                                     % (clawaddr,targetname) 
-                    line = line.replace(oldpat,newpat)
+                        newpat = '<a href="%s/%s">%s</a>' % (
+                            clawaddr,
+                            targetname,
+                            targetname,
+                        ) + '&nbsp;<a href="%s/%s.html">[.html]</a>' % (
+                            clawaddr,
+                            targetname,
+                        )
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
-
 
                 # replace links of the form [claw:clawpack/1d/lib]
                 # for example by links relative to clawaddr,
                 # with no .html version.
-                regexp = re.compile(r"\[claw:[ ]?(?P<target>[^ ^\]]*)" + \
-                                    r"([ ]*)(?P<text>[^\]]*)\]")
+                regexp = re.compile(
+                    r"\[claw:[ ]?(?P<target>[^ ^\]]*)" + r"([ ]*)(?P<text>[^\]]*)\]"
+                )
                 result = regexp.search(line)
                 while result:
-                    targetname = result.group('target')
-                    text = result.group('text')
+                    targetname = result.group("target")
+                    text = result.group("text")
                     oldpat = result.group()
-                    if text=='': 
-                        text = '$CLAW/' + targetname
-                    newpat = '<a href="' + clawaddr + '/' + targetname + \
-                               '">' + text + '</a>  ' 
-                    line = line.replace(oldpat,newpat)
+                    if text == "":
+                        text = "$CLAW/" + targetname
+                    newpat = (
+                        '<a href="'
+                        + clawaddr
+                        + "/"
+                        + targetname
+                        + '">'
+                        + text
+                        + "</a>  "
+                    )
+                    line = line.replace(oldpat, newpat)
                     result = regexp.search(line)
 
-                # place text surrounded by triple braces with 
+                # place text surrounded by triple braces with
                 # pre environment with background color:
                 newpat = '<pre class="clawcode">'
-                line = line.replace('{{{',newpat)
-                line = line.replace('}}}','</pre>')
+                line = line.replace("{{{", newpat)
+                line = line.replace("}}}", "</pre>")
 
-          
             else:
                 # not insidehtml - make regular comments default_color.
                 # Determine if this line contains a comment and if so,
                 # what column the comment starts in:
 
                 startcomment = 1000
-                if (ext == '.f') & (line[0] in firstfort):
+                if (ext == ".f") & (line[0] in firstfort):
                     startcomment = 0
-                elif (ext == '.f95') & (line[0] in firstfort95):
+                elif (ext == ".f95") & (line[0] in firstfort95):
                     startcomment = 0
                 else:
                     if commentchar[ext]:
                         for c in commentchar[ext]:
                             commentcol = line.find(c)
-                            if (commentcol>-1)&(commentcol<startcomment):
+                            if (commentcol > -1) & (commentcol < startcomment):
                                 startcomment = commentcol
 
-                if startcomment<1000:
-                    line = line[0:startcomment] + \
-                           '<font color="%s">'  % default_color + \
-                           line[startcomment:-1] + '</font>\n'
-
+                if startcomment < 1000:
+                    line = (
+                        line[0:startcomment]
+                        + '<font color="%s">' % default_color
+                        + line[startcomment:-1]
+                        + "</font>\n"
+                    )
 
             # output the (possibly modified) line to the output file:
-            ofile.write('%s' % leadingindent+line)
-    
+            ofile.write("%s" % leadingindent + line)
+
     # Done with all lines.  Add closing stuff at bottom of html file:
-    ofile.write('</pre></html>\n')
-    
+    ofile.write("</pre></html>\n")
+
     ifile.close()
     ofile.close()
-    
