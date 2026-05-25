@@ -210,7 +210,7 @@ def gctransect(x1, y1, x2, y2, npts, coords="W", units="degrees", Rearth=Rearth)
 
     If coords='W' the points will all have -2*pi < x <= 0.
     If coords='E' the points will all have -0 <= x < 2*pi.
-    With continuity at the date line x = \pm pi.
+    With continuity at the date line x = pm pi.
 
     Sample usage for 50 points on great circle from Tohoku to Crescent City:
 
