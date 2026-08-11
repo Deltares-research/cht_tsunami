@@ -12,7 +12,9 @@ import geopandas as gpd
 import numpy as np
 
 # Default S3 location for the GEM faults file
-S3_BUCKET = "deltares-ddb"
+S3_BUCKET = "delftdashboard"
+# Endpoint URL for S3-compatible stores; set to None for AWS S3
+S3_ENDPOINT = "https://s3.deltares.nl"
 S3_KEY = "data/tsunami/gem_active_faults.geojson"
 S3_REGION = "eu-west-1"
 FILE_NAME = "gem_active_faults.geojson"
@@ -93,6 +95,7 @@ def _download_from_s3(
 
         s3 = boto3.client(
             "s3",
+            endpoint_url=S3_ENDPOINT or None,
             region_name=s3_region,
             config=Config(signature_version=UNSIGNED),
         )
